@@ -1,0 +1,11 @@
+services:
+  suggest-bridge:
+    build: .
+    container_name: suggest-bridge
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    environment:
+      BRIDGE_DB_PATH: /data/bridge.db

@@ -1,0 +1,20 @@
+# Secrets and runtime data
+.env
+local.env
+data/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.sync-conflict-*
+
+# Build artifacts
+dist/
+*.zip

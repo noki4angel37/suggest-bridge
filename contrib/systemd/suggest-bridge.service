@@ -1,0 +1,18 @@
+[Unit]
+Description=Suggest Bridge (Telegram ↔ Discord)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/suggest-bridge
+EnvironmentFile=/etc/suggest-bridge/env
+ExecStart=/opt/suggest-bridge/.venv/bin/python -m bot.main
+Restart=on-failure
+RestartSec=10
+
+# Hardening (adjust if you use a dedicated user)
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
