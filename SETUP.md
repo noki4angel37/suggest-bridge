@@ -5,7 +5,7 @@ Self-hosted бот предложки для **одного** Telegram-кана�
 ## Быстрый старт (Docker, рекомендуется)
 
 ```bash
-git clone https://github.com/noki4angel/suggest-bridge.git
+git clone https://github.com/noki4angel37/suggest-bridge.git
 cd suggest-bridge
 cp .env.example .env
 # заполните токены в .env
@@ -55,7 +55,7 @@ sudo systemctl enable --now suggest-bridge
 
 ## Windows (zip / агент)
 
-1. Скачайте zip из [Releases](https://github.com/noki4angel/suggest-bridge/releases) или `/download` в боте.
+1. Скачайте zip из [Releases](https://github.com/noki4angel37/suggest-bridge/releases) или `/download` в боте.
 2. Распакуйте, откройте PowerShell в папке:
 
 ```powershell

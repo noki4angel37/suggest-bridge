@@ -19,4 +19,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bilingual README (RU + EN), SETUP guide, SECURITY policy
 - CI: pytest on Python 3.11 and 3.12
 
-[0.1.0]: https://github.com/noki4angel/suggest-bridge/releases/tag/v0.1.0
+[0.1.0]: https://github.com/noki4angel37/suggest-bridge/releases/tag/v0.1.0

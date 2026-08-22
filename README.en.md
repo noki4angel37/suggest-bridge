@@ -4,7 +4,7 @@
 
 # Suggest Bridge
 
-[![CI](https://github.com/noki4angel/suggest-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/noki4angel/suggest-bridge/actions/workflows/ci.yml)
+[![CI](https://github.com/noki4angel37/suggest-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/noki4angel37/suggest-bridge/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
@@ -63,7 +63,7 @@ Mock UI examples: [docs/assets/screenshots-mockup.md](docs/assets/screenshots-mo
 ### Docker
 
 ```bash
-git clone https://github.com/noki4angel/suggest-bridge.git
+git clone https://github.com/noki4angel37/suggest-bridge.git
 cd suggest-bridge
 cp .env.example .env
 # fill BOT_TOKEN, DISCORD_TOKEN, ADMIN_IDS, CHANNEL_ID
@@ -78,7 +78,7 @@ Copy [`.env.example`](.env.example). Channel names and hashtag default to Russia
 
 ## Support
 
-- [GitHub Issues](https://github.com/noki4angel/suggest-bridge/issues)
+- [GitHub Issues](https://github.com/noki4angel37/suggest-bridge/issues)
 - Discord support server — add invite link when available
 
 ## License

@@ -4,7 +4,7 @@
 
 # Suggest Bridge
 
-[![CI](https://github.com/noki4angel/suggest-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/noki4angel/suggest-bridge/actions/workflows/ci.yml)
+[![CI](https://github.com/noki4angel37/suggest-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/noki4angel37/suggest-bridge/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
@@ -63,7 +63,7 @@ flowchart LR
 ### Docker (Linux / VPS)
 
 ```bash
-git clone https://github.com/noki4angel/suggest-bridge.git
+git clone https://github.com/noki4angel37/suggest-bridge.git
 cd suggest-bridge
 cp .env.example .env
 # заполните BOT_TOKEN, DISCORD_TOKEN, ADMIN_IDS, CHANNEL_ID
@@ -72,7 +72,7 @@ docker compose up -d
 
 ### Windows
 
-1. Скачайте zip из [Releases](https://github.com/noki4angel/suggest-bridge/releases)
+1. Скачайте zip из [Releases](https://github.com/noki4angel37/suggest-bridge/releases)
 2. Распакуйте → `Copy-Item .env.example .env` → заполните токены
 3. `python -m venv .venv` → `.\.venv\Scripts\pip install -r requirements.txt`
 4. `.\.venv\Scripts\python.exe -m bot.main`
@@ -95,7 +95,7 @@ docker compose up -d
 
 ## Поддержка
 
-- [GitHub Issues](https://github.com/noki4angel/suggest-bridge/issues) — баги и идеи
+- [GitHub Issues](https://github.com/noki4angel37/suggest-bridge/issues) — баги и идеи
 - Discord — создайте сервер поддержки и добавьте инвайт в README (см. CONTRIBUTING)
 
 ## Лицензия

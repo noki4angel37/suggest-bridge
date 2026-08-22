@@ -4,7 +4,7 @@ Thanks for helping improve Suggest Bridge.
 
 ## Bug reports
 
-1. Check [existing issues](https://github.com/noki4angel/suggest-bridge/issues).
+1. Check [existing issues](https://github.com/noki4angel37/suggest-bridge/issues).
 2. Open a new issue with: OS, run mode (TG/DS/both), steps to reproduce, logs (redact tokens).
 
 ## Pull requests
