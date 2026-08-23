@@ -17,3 +17,9 @@ Thanks for helping improve Suggest Bridge.
 
 - Python 3.11+
 - UI strings stay Russian for now; docs may be RU + EN.
+
+## Community
+
+- **[Discord](https://discord.gg/F3fBdeTx94)** — questions, install help, release news
+- **[Site](https://noki4angel37.github.io/suggest-bridge/)** — user-facing docs (subscribers)
+- **[Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** — operator docs (admins)

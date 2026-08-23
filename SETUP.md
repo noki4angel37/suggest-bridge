@@ -7,10 +7,11 @@ Self-hosted бот предложки для **одного** Telegram-кана�
 ```bash
 git clone https://github.com/noki4angel37/suggest-bridge.git
 cd suggest-bridge
-cp .env.example .env
-# заполните токены в .env
+bash scripts/deploy/prepare-env.sh   # Windows: .\scripts\deploy\prepare-env.ps1
+# отредактируйте .env (токены)
 docker compose up -d
 docker compose logs -f
+curl -s http://127.0.0.1:8080/healthz
 ```
 
 Данные SQLite: `./data/bridge.db`.
@@ -27,7 +28,7 @@ docker compose logs -f
 
 1. [discord.com/developers](https://discord.com/developers/applications) → New Application → Bot.
 2. **Privileged Gateway Intents**: включите **Message Content** и **Server Members**.
-3. **OAuth2 → URL Generator**: scopes `bot` + `applications.commands`, права **126032** (Manage Messages для скрытия заявок).
+3. **OAuth2 → URL Generator**: scopes `bot` + `applications.commands`, права **268561488** (Manage Messages + Manage Roles для setup; не Administrator).
 4. Пригласите бота на сервер по сгенерированной ссылке.
 5. На сервере выполните `/setup_suggest` — создаст каналы и роли (имена настраиваются в `.env`).
 6. Оформление категорий: `/decorate_server`.
@@ -42,12 +43,14 @@ docker compose logs -f
 ## Linux (systemd)
 
 ```bash
+git clone https://github.com/noki4angel37/suggest-bridge.git
+cd suggest-bridge
 sudo mkdir -p /opt/suggest-bridge /etc/suggest-bridge
-sudo cp -r . /opt/suggest-bridge/
-python3 -m venv /opt/suggest-bridge/.venv
-/opt/suggest-bridge/.venv/bin/pip install -r /opt/suggest-bridge/requirements.txt
+sudo cp -a . /opt/suggest-bridge/
+sudo python3 -m venv /opt/suggest-bridge/.venv
+sudo /opt/suggest-bridge/.venv/bin/pip install -r /opt/suggest-bridge/requirements.txt
 sudo cp .env.example /etc/suggest-bridge/env
-# отредактируйте /etc/suggest-bridge/env
+# отредактируйте /etc/suggest-bridge/env (systemd читает его, не project .env)
 sudo cp contrib/systemd/suggest-bridge.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now suggest-bridge
@@ -69,12 +72,31 @@ Copy-Item .env.example .env
 
 ## Multi-PC (опционально)
 
-- На каждом ПК админа: агент (`install-agent.ps1`) + общая папка `HOST_SYNC_DIR` (Syncthing, NAS, облако).
-- Передача primary: `/host` в Telegram или Discord.
+- `HOST_SYNC_SECRET` — один и тот же на всех ПК (обязателен для агента / Syncthing)
+- `HOST_SYNC_DIR`, `HOST_ID`, `HOST_ROLE`, `HOST_LEASE_TTL_SEC`, `AGENT_TELEGRAM_ID`
+- На каждом ПК админа: агент (`install-agent.ps1`) + общая папка `HOST_SYNC_DIR` (Syncthing)
+- Передача primary: `/host` в Telegram или Discord (только админы бота)
+
+## Health check
+
+- `HEALTH_PORT=8080` — JSON `GET /healthz` (Telegram/Discord/lease checks)
+- Docker: `HEALTHCHECK` в образе; в compose задайте `HEALTH_PORT`
+
+## FSM / черновики
+
+- Telegram FSM (`MemoryStorage`): черновики и шаг «ответ автору» **не переживают рестарт** процесса
+- Шаг ответа/отклонения истекает через 15 минут без активности
 
 ## Поддержка
 
-- GitHub Issues — баги и предложения
-- Discord-сервер — см. README (инвайт добавьте при создании сервера)
+- **[Discord](https://discord.gg/F3fBdeTx94)** — вопросы, новости, помощь с установкой
+- [GitHub Issues](https://github.com/noki4angel37/suggest-bridge/issues) — баги и предложения (без токенов в описании)
 
-Полная документация: [README.md](README.md) · English: [README.en.md](README.en.md)
+## Документация
+
+| Документ | Назначение |
+|----------|------------|
+| [Сайт для подписчиков](https://noki4angel37.github.io/suggest-bridge/) | Как отправить заявку, FAQ |
+| [README.md](README.md) | Обзор и быстрый старт |
+| [README.en.md](README.en.md) | English overview |
+| **[GitHub Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** | Операторский справочник (источник: [docs/wiki/](docs/wiki/)) |
