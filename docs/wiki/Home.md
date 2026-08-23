@@ -1,19 +1,34 @@
 # Suggest Bridge
 
-Self-hosted бот **предложки** для Telegram-канала и Discord-сервера.
+**Suggest Bridge** — бот, через который подписчики отправляют идеи и предложения в сообщество. Текст проходит модерацию, и одобренное публикуется в Telegram-канале и/или на Discord-сервере.
+
+Подписчикам не нужны токены, серверы и настройки — достаточно написать боту или воспользоваться командой на Discord.
 
 | | |
 |---|---|
 | Репозиторий | [github.com/noki4angel37/suggest-bridge](https://github.com/noki4angel37/suggest-bridge) |
-| Сайт (подписчики) | [noki4angel37.github.io/suggest-bridge](https://noki4angel37.github.io/suggest-bridge/) |
 | Discord | [discord.gg/F3fBdeTx94](https://discord.gg/F3fBdeTx94) |
 | Лицензия | MIT |
 | Python | 3.11+ |
 | Стек | aiogram 3, discord.py, SQLite (WAL) |
 
-> **Операторский справочник** (как жить с ботом). Краткий маркетинг и старт за 5 минут — [README](https://github.com/noki4angel37/suggest-bridge/blob/main/README.md). Документация = ветка `main`; тег `v0.1.0` может отставать — [CHANGELOG](https://github.com/noki4angel37/suggest-bridge/blob/main/CHANGELOG.md).
+> Краткий обзор и быстрый старт для админов — [README](https://github.com/noki4angel37/suggest-bridge/blob/main/README.md). Документация = ветка `main`; релизный тег может отставать — [CHANGELOG](https://github.com/noki4angel37/suggest-bridge/blob/main/CHANGELOG.md).
 
-## С чего начать
+## Как это работает
+
+1. **Вы отправляете** текст или медиа (до 400 символов в подписи).
+2. **Модераторы проверяют** заявку в очереди — могут одобрить, отклонить или попросить уточнение.
+3. **Одобренное публикуется** в канале или ленте `#предложка` — с вашим именем или анонимно.
+
+## Для подписчиков
+
+| Страница | Зачем |
+|----------|-------|
+| [[Как-отправить-заявку]] | Пошагово для Telegram и Discord |
+| [[FAQ-подписчиков]] | Частые вопросы |
+| [[Discord-сервер]] | Общение, новости, поддержка |
+
+## Для администраторов
 
 1. Заполните токены — [[Конфигурация]], [[Telegram]], [[Discord]]
 2. Поднимите процесс — [[Быстрый-старт]] / [[Деплой]]
@@ -36,6 +51,7 @@ Self-hosted бот **предложки** для Telegram-канала и Discor
 
 | Раздел | Страница |
 |--------|----------|
+| Подписчикам | [[Как-отправить-заявку]], [[FAQ-подписчиков]], [[Discord-сервер]] |
 | Установка | [[Быстрый-старт]], [[Деплой]] |
 | Устройство | [[Архитектура]], [[Глоссарий]] |
 | Платформы | [[Telegram]], [[Discord]] |
@@ -48,10 +64,8 @@ Self-hosted бот **предложки** для Telegram-канала и Discor
 
 | Документ | Назначение |
 |----------|------------|
-| [Сайт](https://noki4angel37.github.io/suggest-bridge/) | Подписчики: как отправить заявку, FAQ |
 | [README.md](https://github.com/noki4angel37/suggest-bridge/blob/main/README.md) | Обзор |
 | [SETUP.md](https://github.com/noki4angel37/suggest-bridge/blob/main/SETUP.md) | Установка (кратко) |
 | [SECURITY.md](https://github.com/noki4angel37/suggest-bridge/blob/main/SECURITY.md) | Уязвимости |
 | [.env.example](https://github.com/noki4angel37/suggest-bridge/blob/main/.env.example) | Шаблон конфигурации |
 | [Issues](https://github.com/noki4angel37/suggest-bridge/issues) | Баги и идеи |
-| [Discord](https://discord.gg/F3fBdeTx94) | Сообщество и поддержка |

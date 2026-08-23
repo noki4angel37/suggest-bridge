@@ -21,5 +21,4 @@ Thanks for helping improve Suggest Bridge.
 ## Community
 
 - **[Discord](https://discord.gg/F3fBdeTx94)** — questions, install help, release news
-- **[Site](https://noki4angel37.github.io/suggest-bridge/)** — user-facing docs (subscribers)
-- **[Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** — operator docs (admins)
+- **[Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** — all documentation (members and operators)

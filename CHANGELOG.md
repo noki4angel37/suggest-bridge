@@ -25,11 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mirror text truncated to Discord 2000 / Telegram 1024
 - Guild decorate/setup: break-glass overwrites for owner and invoker
 
+### Changed
+
+- Documentation consolidated in GitHub Wiki; GitHub Pages removed
+- Subscriber pages moved to wiki: Как-отправить-заявку, FAQ-подписчиков, Discord-сервер
+
 ### Added
 
-- GitHub Pages site ([noki4angel37.github.io/suggest-bridge](https://noki4angel37.github.io/suggest-bridge/)): landing, user guide, FAQ, Discord community page (Jekyll just-the-docs)
-- README: subscriber section above admin quick start; Discord badge and site link; documentation table
+- README: subscriber section above admin quick start; Discord badge and wiki link; documentation table
 - Public Discord invite in README, SETUP, CONTRIBUTING, wiki sidebar/footer
+- Wiki subscriber pages and expanded Home/sidebar navigation
 - `bot/core/safe_fetch.py`, health endpoint (`HEALTH_PORT`), CI ruff lint
 - Docker runs as non-root user; GitHub Actions pinned by commit SHA
 - Deploy scripts `scripts/deploy/prepare-env.*`, multi-page wiki source [`docs/wiki/`](docs/wiki/) (publish notes [docs/WIKI.md](docs/WIKI.md))

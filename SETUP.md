@@ -96,7 +96,7 @@ Copy-Item .env.example .env
 
 | Документ | Назначение |
 |----------|------------|
-| [Сайт для подписчиков](https://noki4angel37.github.io/suggest-bridge/) | Как отправить заявку, FAQ |
+| **[GitHub Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** | Вся документация (источник: [docs/wiki/](docs/wiki/)) |
+| [Как отправить заявку](https://github.com/noki4angel37/suggest-bridge/wiki/Как-отправить-заявку) | Для подписчиков |
 | [README.md](README.md) | Обзор и быстрый старт |
 | [README.en.md](README.en.md) | English overview |
-| **[GitHub Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** | Операторский справочник (источник: [docs/wiki/](docs/wiki/)) |
