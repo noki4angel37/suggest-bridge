@@ -34,7 +34,7 @@
 3. Синхронизация из источника правды:
 
 ```powershell
-cd c:\!projects\suggest-bridge
+# из корня клонированного репозитория suggest-bridge
 .\scripts\deploy\publish-wiki.ps1
 ```
 
