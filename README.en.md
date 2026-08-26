@@ -56,7 +56,7 @@ More in the Wiki: **[How to submit](https://github.com/noki4angel37/suggest-brid
 | Publishing | Telegram channel and/or Discord feed (dual-publish) |
 | Anonymity | Authors can hide their name |
 | Mirror | TG ↔ Discord feed sync |
-| Server setup | `/setup_suggest`, `/decorate_server` |
+| Server setup | `/setup_suggest`, `/setup_pass`, `/decorate_server` |
 | Multi-PC | `/host` + Windows agent for admin workstations |
 | Run modes | Telegram-only, Discord-only, or both |
 

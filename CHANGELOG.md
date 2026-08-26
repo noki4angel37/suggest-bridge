@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Discord pass rooms: `/prohodka` requests a temporary role via suggest moderation; `/setup_pass` creates or locks channels behind that role (repeatable, not theme-specific)
 - Wiki: subscriber pages (rules, UI examples, news), admin onboarding (first launch, Discord layout, run modes), operator deep-dives (mirror, anti-flood, roles, scheduled publish, migration, host requirements), English member docs, privacy and wiki contribution guides
 - README: subscriber section above admin quick start; Discord badge and wiki link; documentation table
 - Public Discord invite in README, SETUP, CONTRIBUTING, wiki sidebar/footer

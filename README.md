@@ -56,7 +56,7 @@ English: [README.en.md](README.en.md) · **Документация:** [Wiki](ht
 | Публикация | Telegram-канал и/или Discord `#предложка` (dual-publish) |
 | Анонимность | Автор может скрыть имя |
 | Зеркало | Синхронизация ленты TG ↔ Discord |
-| Настройка сервера | `/setup_suggest`, `/decorate_server` (категории, ACL, emoji┃имена) |
+| Настройка сервера | `/setup_suggest`, `/setup_pass`, `/decorate_server` (категории, ACL, emoji┃имена) |
 | Multi-PC | `/host` + Windows-агент для нескольких ПК админов |
 | Режимы | Только TG, только Discord, или оба |
 

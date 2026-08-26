@@ -19,12 +19,16 @@ from bot.adapters.discord.context import (
     resolve_services,
 )
 from bot.adapters.discord.event_sync import DiscordEventSync
-from bot.adapters.discord.guild_setup import GuildSetupCog
 from bot.adapters.discord.guild_decorate import GuildDecorateCog
+from bot.adapters.discord.guild_setup import GuildSetupCog
 from bot.adapters.discord.mirror import ChannelMirrorService, MirrorCog
 from bot.adapters.discord.moderation import restore_moderation_views
+from bot.adapters.discord.pass_request import PassCog
+from bot.adapters.discord.pass_rooms import PassRoomsCog
 from bot.adapters.discord.suggest import SuggestCog
 from bot.core.models import Source
+from bot.core.pass_config import load_pass_config
+from bot.core.pass_service import PassService
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +89,15 @@ class SuggestBot(commands.Bot):
         await self.add_cog(SuggestCog(self, self.ctx))
         await self.add_cog(GuildSetupCog(self, self.ctx))
         await self.add_cog(GuildDecorateCog(self, self.ctx))
+        db = getattr(self.ctx.services.submissions, "db", None)
+        if db is not None:
+            pass_config = load_pass_config()
+            await self.add_cog(
+                PassCog(self, self.ctx, PassService(db, pass_config))
+            )
+            await self.add_cog(
+                PassRoomsCog(self, self.ctx, db, pass_config)
+            )
         if self.mirror is not None:
             self.mirror.bind_discord(self)
             await self.add_cog(MirrorCog(self, self.mirror))

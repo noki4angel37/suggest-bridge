@@ -165,6 +165,33 @@ class GuildConfig:
     rate_limit_window_sec: int | None = None
 
 
+class PassRequestStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    expired = "expired"
+
+
+@dataclass
+class PassRequest:
+    """Temporary Discord role grant requested via slash command."""
+
+    guild_id: str
+    user_id: str
+    display_name: str
+    id: int | None = None
+    username: str | None = None
+    status: PassRequestStatus = PassRequestStatus.pending
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    decided_at: datetime | None = None
+    decided_by: str | None = None
+    expires_at: datetime | None = None
+    cooldown_until: datetime | None = None
+    mod_channel_id: str | None = None
+    mod_message_id: str | None = None
+
+
 @dataclass
 class MirrorLink:
     """Maps a TG channel message to its Discord twin (and vice versa)."""

@@ -19,6 +19,8 @@ from bot.core.models import (
     MirrorKind,
     MirrorLink,
     ModerationRef,
+    PassRequest,
+    PassRequestStatus,
     Platform,
     PublishTarget,
     RefKind,
@@ -136,6 +138,38 @@ CREATE TABLE IF NOT EXISTS antiflood_hits (
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT
+);
+
+CREATE TABLE IF NOT EXISTS pass_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    username TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by TEXT,
+    expires_at TEXT,
+    cooldown_until TEXT,
+    mod_channel_id TEXT,
+    mod_message_id TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pass_requests_user_status
+    ON pass_requests(guild_id, user_id, status);
+CREATE INDEX IF NOT EXISTS idx_pass_requests_status
+    ON pass_requests(status);
+
+CREATE TABLE IF NOT EXISTS pass_antiflood (
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    window_start REAL NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    last_hit REAL NOT NULL DEFAULT 0,
+    strike_until REAL,
+    PRIMARY KEY (guild_id, user_id)
 );
 """
 
@@ -329,7 +363,7 @@ class BridgeDatabase:
     def update_submission(self, submission_id: int, **fields: object) -> None:
         unknown = set(fields) - set(_SUBMISSION_UPDATABLE)
         if unknown:
-            raise ValueError(f"Неизвестные поля заявки: {sorted(unknown)}")
+            raise ValueError(f"РќРµРёР·РІРµСЃС‚РЅС‹Рµ РїРѕР»СЏ Р·Р°СЏРІРєРё: {sorted(unknown)}")
         if not fields:
             return
 
@@ -801,7 +835,7 @@ class BridgeDatabase:
         }
         unknown = set(fields) - allowed
         if unknown:
-            raise ValueError(f"Неизвестные поля mirror_links: {sorted(unknown)}")
+            raise ValueError(f"РќРµРёР·РІРµСЃС‚РЅС‹Рµ РїРѕР»СЏ mirror_links: {sorted(unknown)}")
         if not fields:
             return
         values: list[object] = []
@@ -960,6 +994,308 @@ class BridgeDatabase:
                 WHERE platform = ? AND platform_user_id = ?
                 """,
                 (Platform(platform).value, platform_user_id),
+            )
+
+    # --- temporary role pass requests ----------------------------------------
+
+    def _row_to_pass_request(self, row: sqlite3.Row) -> PassRequest:
+        return PassRequest(
+            id=row["id"],
+            guild_id=row["guild_id"],
+            user_id=row["user_id"],
+            display_name=row["display_name"],
+            username=row["username"],
+            status=PassRequestStatus(row["status"]),
+            created_at=_from_iso(row["created_at"]),
+            updated_at=_from_iso(row["updated_at"]),
+            decided_at=_from_iso(row["decided_at"]),
+            decided_by=row["decided_by"],
+            expires_at=_from_iso(row["expires_at"]),
+            cooldown_until=_from_iso(row["cooldown_until"]),
+            mod_channel_id=row["mod_channel_id"],
+            mod_message_id=row["mod_message_id"],
+        )
+
+    def insert_pass_request(self, request: PassRequest) -> PassRequest | None:
+        """Insert a pending request. Returns None if one is already pending."""
+        now = utcnow()
+        created = request.created_at or now
+        updated = request.updated_at or now
+        with self._tx() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = conn.execute(
+                """
+                SELECT id FROM pass_requests
+                WHERE guild_id = ? AND user_id = ? AND status = ?
+                """,
+                (
+                    request.guild_id,
+                    request.user_id,
+                    PassRequestStatus.pending.value,
+                ),
+            ).fetchone()
+            if existing is not None:
+                return None
+            cur = conn.execute(
+                """
+                INSERT INTO pass_requests (
+                    guild_id, user_id, display_name, username, status,
+                    created_at, updated_at, decided_at, decided_by,
+                    expires_at, cooldown_until, mod_channel_id, mod_message_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    request.guild_id,
+                    request.user_id,
+                    request.display_name,
+                    request.username,
+                    request.status.value,
+                    _to_iso(created),
+                    _to_iso(updated),
+                    _to_iso(request.decided_at),
+                    request.decided_by,
+                    _to_iso(request.expires_at),
+                    _to_iso(request.cooldown_until),
+                    request.mod_channel_id,
+                    request.mod_message_id,
+                ),
+            )
+            request.id = int(cur.lastrowid)
+            request.created_at = created
+            request.updated_at = updated
+        return request
+
+    def get_pass_request(self, request_id: int) -> PassRequest | None:
+        with self._tx() as conn:
+            row = conn.execute(
+                "SELECT * FROM pass_requests WHERE id = ?", (request_id,)
+            ).fetchone()
+        return self._row_to_pass_request(row) if row else None
+
+    def get_pending_pass(
+        self, guild_id: str, user_id: str
+    ) -> PassRequest | None:
+        with self._tx() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM pass_requests
+                WHERE guild_id = ? AND user_id = ? AND status = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (guild_id, user_id, PassRequestStatus.pending.value),
+            ).fetchone()
+        return self._row_to_pass_request(row) if row else None
+
+    def get_active_pass(
+        self, guild_id: str, user_id: str, *, now: datetime
+    ) -> PassRequest | None:
+        with self._tx() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM pass_requests
+                WHERE guild_id = ? AND user_id = ? AND status = ?
+                  AND expires_at IS NOT NULL AND expires_at > ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (
+                    guild_id,
+                    user_id,
+                    PassRequestStatus.approved.value,
+                    _to_iso(now),
+                ),
+            ).fetchone()
+        return self._row_to_pass_request(row) if row else None
+
+    def get_reject_cooldown(
+        self, guild_id: str, user_id: str, *, now: datetime
+    ) -> PassRequest | None:
+        with self._tx() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM pass_requests
+                WHERE guild_id = ? AND user_id = ? AND status = ?
+                  AND cooldown_until IS NOT NULL AND cooldown_until > ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (
+                    guild_id,
+                    user_id,
+                    PassRequestStatus.rejected.value,
+                    _to_iso(now),
+                ),
+            ).fetchone()
+        return self._row_to_pass_request(row) if row else None
+
+    def list_pass_requests(
+        self,
+        *,
+        status: PassRequestStatus | None = None,
+        limit: int = 200,
+    ) -> list[PassRequest]:
+        query = "SELECT * FROM pass_requests"
+        params: list[object] = []
+        if status is not None:
+            query += " WHERE status = ?"
+            params.append(status.value)
+        query += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        with self._tx() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [self._row_to_pass_request(row) for row in rows]
+
+    def list_due_pass_grants(self, *, now: datetime) -> list[PassRequest]:
+        with self._tx() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM pass_requests
+                WHERE status = ? AND expires_at IS NOT NULL AND expires_at <= ?
+                ORDER BY id ASC
+                """,
+                (PassRequestStatus.approved.value, _to_iso(now)),
+            ).fetchall()
+        return [self._row_to_pass_request(row) for row in rows]
+
+    def update_pass_request(self, request: PassRequest) -> PassRequest:
+        if request.id is None:
+            raise ValueError("pass request id is required")
+        request.updated_at = utcnow()
+        with self._tx() as conn:
+            conn.execute(
+                """
+                UPDATE pass_requests SET
+                    display_name = ?, username = ?, status = ?,
+                    updated_at = ?, decided_at = ?, decided_by = ?,
+                    expires_at = ?, cooldown_until = ?,
+                    mod_channel_id = ?, mod_message_id = ?
+                WHERE id = ?
+                """,
+                (
+                    request.display_name,
+                    request.username,
+                    request.status.value,
+                    _to_iso(request.updated_at),
+                    _to_iso(request.decided_at),
+                    request.decided_by,
+                    _to_iso(request.expires_at),
+                    _to_iso(request.cooldown_until),
+                    request.mod_channel_id,
+                    request.mod_message_id,
+                    request.id,
+                ),
+            )
+        return request
+
+    def claim_pass_decision(
+        self,
+        request_id: int,
+        *,
+        expected_status: PassRequestStatus,
+        new_status: PassRequestStatus,
+        decided_by: str,
+        now: datetime,
+        expires_at: datetime | None = None,
+        cooldown_until: datetime | None = None,
+    ) -> PassRequest | None:
+        """Atomically move a request out of ``expected_status``."""
+        with self._tx() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            cur = conn.execute(
+                """
+                UPDATE pass_requests SET
+                    status = ?, updated_at = ?, decided_at = ?, decided_by = ?,
+                    expires_at = ?, cooldown_until = ?
+                WHERE id = ? AND status = ?
+                """,
+                (
+                    new_status.value,
+                    _to_iso(now),
+                    _to_iso(now),
+                    decided_by,
+                    _to_iso(expires_at),
+                    _to_iso(cooldown_until),
+                    request_id,
+                    expected_status.value,
+                ),
+            )
+            if cur.rowcount != 1:
+                return None
+            row = conn.execute(
+                "SELECT * FROM pass_requests WHERE id = ?", (request_id,)
+            ).fetchone()
+        return self._row_to_pass_request(row) if row else None
+
+    def bump_pass_antiflood(
+        self,
+        guild_id: str,
+        user_id: str,
+        *,
+        now: float,
+        window_sec: int,
+    ) -> tuple[int, float, float | None]:
+        """Hit counter for /prohodka. Returns (count, last_hit, strike_until)."""
+        with self._tx() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                """
+                SELECT window_start, count, last_hit, strike_until
+                FROM pass_antiflood
+                WHERE guild_id = ? AND user_id = ?
+                """,
+                (guild_id, user_id),
+            ).fetchone()
+            strike_until = (
+                float(row["strike_until"])
+                if row is not None and row["strike_until"] is not None
+                else None
+            )
+            if row is None or now - float(row["window_start"]) >= window_sec:
+                window_start = now
+                count = 1
+            else:
+                window_start = float(row["window_start"])
+                count = int(row["count"]) + 1
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO pass_antiflood (
+                    guild_id, user_id, window_start, count, last_hit,
+                    strike_until
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (guild_id, user_id, window_start, count, now, strike_until),
+            )
+        return count, now, strike_until
+
+    def peek_pass_antiflood(
+        self, guild_id: str, user_id: str
+    ) -> tuple[float, float | None]:
+        """Return (last_hit, strike_until); last_hit is 0 if unseen."""
+        with self._tx() as conn:
+            row = conn.execute(
+                """
+                SELECT last_hit, strike_until FROM pass_antiflood
+                WHERE guild_id = ? AND user_id = ?
+                """,
+                (guild_id, user_id),
+            ).fetchone()
+        if row is None:
+            return 0.0, None
+        strike = (
+            float(row["strike_until"])
+            if row["strike_until"] is not None
+            else None
+        )
+        return float(row["last_hit"] or 0), strike
+
+    def set_pass_strike(
+        self, guild_id: str, user_id: str, *, strike_until: float
+    ) -> None:
+        with self._tx() as conn:
+            conn.execute(
+                """
+                UPDATE pass_antiflood SET strike_until = ?
+                WHERE guild_id = ? AND user_id = ?
+                """,
+                (strike_until, guild_id, user_id),
             )
 
     # --- settings ------------------------------------------------------------

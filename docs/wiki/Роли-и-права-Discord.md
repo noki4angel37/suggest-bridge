@@ -25,7 +25,7 @@ Scopes: `bot` + `applications.commands`. **Не** включайте Administrat
 
 | Право | Бит | Зачем |
 |-------|-----|--------|
-| Manage Channels | 16 | `/setup_suggest`, `/decorate_server` |
+| Manage Channels | 16 | `/setup_suggest`, `/decorate_server`, `/setup_pass` |
 | Add Reactions | 64 | карточки / UX |
 | View Channel | 1024 | чтение каналов |
 | Send Messages | 2048 | публикация и ответы |
@@ -43,6 +43,7 @@ Scopes: `bot` + `applications.commands`. **Не** включайте Administrat
 |---------|-----------|------------|
 | `/setup_suggest` | manage_guild + may_setup | Каналы заявок / модерации / публикации и роли |
 | `/setup_info` | manage_guild + may_setup | Текущие настройки |
+| `/setup_pass` | manage_guild + may_setup | Роль проходки и закрытые каналы ([[Проходка]]) |
 | `/decorate_server` | manage_guild + may_setup | Категории, emoji┃имена, ACL ленты |
 | `/roles_propose` | manage_guild | Кто может отправлять заявки (пусто = все) |
 | `/roles_mod` | manage_guild | Роли модерации карточек |

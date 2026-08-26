@@ -13,6 +13,7 @@
 | Публикация | Telegram-канал, Discord `#предложка`, dual-publish, зеркало ленты |
 | Подписчик | Черновик, анонимность, лимит 400 символов, медиа |
 | Админ | `.env`, Docker, systemd, Windows-агент, `/setup_suggest`, Multi-PC `/host` |
+| Проходка | `/prohodka` + `/setup_pass` (unreleased, ветка `main`) |
 | Качество | CI с тестами, README RU/EN, SECURITY policy |
 
 ## В работе

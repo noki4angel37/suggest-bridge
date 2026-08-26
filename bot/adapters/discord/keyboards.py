@@ -314,6 +314,41 @@ class ModerationView(discord.ui.View):
             )
 
 
+class PassModerationView(discord.ui.View):
+    """Persistent accept/reject controls for a temporary-role request."""
+
+    def __init__(
+        self,
+        request_id: int,
+        *,
+        on_approve: InteractionHandler,
+        on_reject: InteractionHandler,
+        can_decide: bool = True,
+    ) -> None:
+        super().__init__(timeout=None)
+        self.request_id = request_id
+        self.add_item(
+            CallbackButton(
+                handler=on_approve,
+                label="Принять",
+                style=discord.ButtonStyle.success,
+                custom_id=f"pass:approve:{request_id}",
+                disabled=not can_decide,
+                row=0,
+            )
+        )
+        self.add_item(
+            CallbackButton(
+                handler=on_reject,
+                label="Отклонить",
+                style=discord.ButtonStyle.danger,
+                custom_id=f"pass:reject:{request_id}",
+                disabled=not can_decide,
+                row=0,
+            )
+        )
+
+
 def disable_all(view: discord.ui.View) -> discord.ui.View:
     for item in view.children:
         if isinstance(item, (discord.ui.Button, discord.ui.Select)):
