@@ -219,3 +219,20 @@ def test_caption_marks_discord_without_via(tmp_path: Path, with_author: bool) ->
     assert "Discord" in caption
     assert "via" not in caption.lower()
     assert caption.endswith("#предложка")
+
+
+def test_telegram_poll_retry_policy() -> None:
+    from unittest.mock import Mock
+
+    from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
+
+    from bot.bridge import is_retryable_telegram_poll_error
+
+    method = Mock()
+    assert is_retryable_telegram_poll_error(
+        TelegramNetworkError(method=method, message="timeout")
+    )
+    assert not is_retryable_telegram_poll_error(
+        TelegramUnauthorizedError(method=method, message="401")
+    )
+    assert not is_retryable_telegram_poll_error(RuntimeError("other"))

@@ -421,9 +421,11 @@ def register_discord_host(bot: Any, services: Any) -> list[Any]:
 
 
 async def clear_guild_slash_overrides(bot: Any) -> int:
-    """Remove per-guild slash copies so Discord shows each command once (global only).
+    """Remove per-guild slash copies. Do **not** call this on startup.
 
-    Earlier we synced global + guild copies of /host* — clients listed them twice.
+    Guild copies from `tree.copy_global_to` + `sync(guild=)` make commands
+    appear immediately. Clearing them leaves only globals, which Discord can
+    hide for up to an hour.
     """
     cleared = 0
     for guild in list(bot.guilds):
@@ -440,9 +442,14 @@ async def clear_guild_slash_overrides(bot: Any) -> int:
     return cleared
 
 
-# Back-compat alias (old name used by bot_app)
+# Old name used by bot_app. Must not clear guild copies — that hides slash
+# commands for up to an hour.
 async def sync_host_commands_to_guilds(bot: Any) -> int:
-    return await clear_guild_slash_overrides(bot)
+    logger.warning(
+        "sync_host_commands_to_guilds is a no-op; clearing guild slash "
+        "hides commands. Use copy_global_to + sync(guild=) instead."
+    )
+    return 0
 
 
 async def ensure_mod_host_panels(bot: Any, services: Any) -> int:

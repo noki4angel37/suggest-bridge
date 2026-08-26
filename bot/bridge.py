@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from aiogram import Bot, Dispatcher
+from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.adapters.discord.channel_publish import DiscordChannelPublisher
@@ -44,6 +45,17 @@ from bot.core.host_sync import HostSyncStore
 from bot.core.publish_router import PublishRouter
 
 logger = logging.getLogger(__name__)
+
+TELEGRAM_POLL_RETRY_SEC = 20.0
+
+
+def is_retryable_telegram_poll_error(exc: BaseException) -> bool:
+    """Network blips should not tear down Discord. Bad token should."""
+    if isinstance(exc, TelegramUnauthorizedError):
+        return False
+    if isinstance(exc, TelegramNetworkError):
+        return True
+    return False
 
 
 def _host_role() -> str:
@@ -325,7 +337,20 @@ async def run_bridge(config: BridgeConfig | None = None) -> int:
 
     try:
         if telegram_enabled and bridge.dp is not None and bridge.bot is not None:
-            await bridge.dp.start_polling(bridge.bot)
+            while True:
+                try:
+                    await bridge.dp.start_polling(bridge.bot)
+                    break
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    if not is_retryable_telegram_poll_error(exc):
+                        raise
+                    logger.exception(
+                        "Telegram polling: сеть недоступна, повтор через %s с",
+                        TELEGRAM_POLL_RETRY_SEC,
+                    )
+                    await asyncio.sleep(TELEGRAM_POLL_RETRY_SEC)
         elif discord_task is not None:
             await discord_task
         else:

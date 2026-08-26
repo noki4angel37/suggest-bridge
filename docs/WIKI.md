@@ -35,6 +35,7 @@
 | `Telegram.md` | Telegram |
 | `Discord.md` | Discord |
 | `Команды.md` | Команды |
+| `Слэш-команды-Discord.md` | Слэш-команды-Discord |
 | `Модерация.md` | Модерация |
 | `Конфигурация.md` | Конфигурация |
 | `Multi-PC.md` | Multi-PC |

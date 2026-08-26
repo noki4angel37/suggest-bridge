@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Discord slash commands are copied onto each guild at startup so the `/` picker updates immediately; startup no longer wipes guild command copies
+- Telegram network errors no longer stop the whole process (Discord stays connected; polling retries)
+- Windows console logging uses UTF-8 with replacement so emoji in channel names does not crash the logger
 - Dual-publish vs channel mirror race (mirror stub before Discord side)
 - Scheduler republish loop when `mark_published` failed after successful publish
 - Telegram-only mode no longer wires Discord publisher on `both` target
@@ -27,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Discord slash command tree can attach a Russian translator (`locale_str(..., ru=...)`) so localized names work when commands use it
 - Documentation consolidated in GitHub Wiki; GitHub Pages removed
 - Subscriber pages moved to wiki: Как-отправить-заявку, FAQ-подписчиков, Discord-сервер
 

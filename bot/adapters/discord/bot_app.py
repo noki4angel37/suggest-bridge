@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -28,6 +29,22 @@ from bot.core.models import Source
 logger = logging.getLogger(__name__)
 
 BotReadyHook = Callable[[discord.Client], Awaitable[None]]
+
+
+class RuExtrasTranslator(app_commands.Translator):
+    """Use locale_str(..., ru='...') as Discord Russian name/description."""
+
+    async def translate(
+        self,
+        string: app_commands.locale_str,
+        locale: discord.Locale,
+        context: app_commands.TranslationContext,  # type: ignore[type-arg]
+    ) -> str | None:
+        if locale is discord.Locale.russian:
+            ru = string.extras.get("ru")
+            if isinstance(ru, str) and ru:
+                return ru
+        return None
 
 
 def default_intents() -> discord.Intents:
@@ -61,6 +78,8 @@ class SuggestBot(commands.Bot):
         self.on_bot_ready_hook = on_bot_ready
         self.mirror = mirror
         self.event_sync = DiscordEventSync(self, ctx)
+        self._slash_guilds_synced: set[int] = set()
+        self._slash_publish_lock = asyncio.Lock()
 
     async def setup_hook(self) -> None:
         await self.add_cog(SuggestCog(self, self.ctx))
@@ -74,6 +93,7 @@ class SuggestBot(commands.Bot):
 
         register_discord_host(self, self.ctx.services)
         self.event_sync.register()
+        await self.tree.set_translator(RuExtrasTranslator())
 
         @self.tree.error
         async def on_app_command_error(
@@ -102,8 +122,9 @@ class SuggestBot(commands.Bot):
             try:
                 commands_synced = await self.tree.sync()
                 logger.info(
-                    "Слэш-команды (global) синхронизированы: %s",
+                    "Слэш-команды (global) синхронизированы: %s [%s]",
                     len(commands_synced),
+                    ", ".join(cmd.name for cmd in commands_synced),
                 )
             except discord.HTTPException:
                 logger.exception("Не удалось синхронизировать слэш-команды")
@@ -121,16 +142,17 @@ class SuggestBot(commands.Bot):
         await self._sync_guild_channels()
         await self._harden_suggest_channels()
         if self.sync_commands:
-            from bot.adapters.discord.host_panel import (
-                clear_guild_slash_overrides,
-                ensure_mod_host_panels,
-            )
+            from bot.adapters.discord.host_panel import ensure_mod_host_panels
 
             try:
-                n = await clear_guild_slash_overrides(self)
-                logger.info("Guild slash overrides cleared: %s guild(s)", n)
+                n_new = await self._publish_slash_to_guilds()
+                logger.info(
+                    "Slash on guilds: %s ready (%s newly published)",
+                    len(self._slash_guilds_synced),
+                    n_new,
+                )
             except Exception:  # noqa: BLE001
-                logger.exception("Guild slash cleanup failed")
+                logger.exception("Guild slash publish failed")
             try:
                 panels = await ensure_mod_host_panels(self, self.ctx.services)
                 logger.info("Host panels in mod channels: %s", panels)
@@ -141,6 +163,43 @@ class SuggestBot(commands.Bot):
                 await self.on_bot_ready_hook(self)
             except Exception:  # noqa: BLE001
                 logger.exception("on_bot_ready hook failed")
+
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        if self.sync_commands:
+            await self._publish_slash_to_guild(guild)
+
+    async def on_guild_available(self, guild: discord.Guild) -> None:
+        if self.sync_commands:
+            await self._publish_slash_to_guild(guild)
+
+    async def _publish_slash_to_guild(self, guild: discord.Guild) -> bool:
+        """Copy global slash commands onto a guild so they appear immediately."""
+        async with self._slash_publish_lock:
+            if guild.id in self._slash_guilds_synced:
+                return False
+            try:
+                self.tree.copy_global_to(guild=guild)
+                synced = await self.tree.sync(guild=guild)
+                self._slash_guilds_synced.add(guild.id)
+                logger.info(
+                    "Guild %s slash: %s [%s]",
+                    guild.id,
+                    len(synced),
+                    ", ".join(cmd.name for cmd in synced),
+                )
+                return True
+            except discord.HTTPException:
+                logger.exception(
+                    "Не удалось опубликовать slash для guild %s", guild.id
+                )
+                return False
+
+    async def _publish_slash_to_guilds(self) -> int:
+        published = 0
+        for guild in list(self.guilds):
+            if await self._publish_slash_to_guild(guild):
+                published += 1
+        return published
 
     async def _sync_guild_channels(self) -> None:
         """Bind suggest/publish channel ids by name when config is incomplete."""
