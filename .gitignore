@@ -18,3 +18,6 @@ Thumbs.db
 # Build artifacts
 dist/
 *.zip
+
+# Local wiki publish clones
+.wiki-publish/

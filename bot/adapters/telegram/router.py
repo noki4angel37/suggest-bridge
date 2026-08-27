@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from aiogram import Bot, Router
 
+from bot.adapters.telegram.command_log import CommandEventLogMiddleware
 from bot.adapters.telegram.deps import ServicesMiddleware, TelegramServices
 from bot.adapters.telegram.handlers_admin import build_admin_router
 from bot.adapters.telegram.handlers_host import register_telegram_host
@@ -38,6 +39,7 @@ def build_telegram_router(
     middleware = ServicesMiddleware(services)
     # Outer middleware on the root observers also feeds nested routers and filters.
     root.message.outer_middleware(middleware)
+    root.message.outer_middleware(CommandEventLogMiddleware())
     root.callback_query.outer_middleware(middleware)
 
     root.include_router(build_admin_router())

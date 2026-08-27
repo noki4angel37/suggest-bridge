@@ -85,7 +85,10 @@ def media_summary(submission: Submission) -> str:
 
 def format_card(submission: Submission, *, status_line: str | None = None) -> str:
     """HTML body of a moderation card; all author content is escaped."""
-    lines = [f"📩 <b>Заявка #{submission.id}</b>", ""]
+    from bot.core.rules import display_sid
+
+    sid = display_sid(submission.id)
+    lines = [f"📩 <b>Заявка {sid}</b> <i>(#{submission.id})</i>", ""]
     lines.append(f"👤 {escape(submission.author_display_name)}")
     if submission.author_username:
         lines.append(f"@{escape(submission.author_username)}")
@@ -147,6 +150,11 @@ class TelegramCards:
         self.admins = admins
 
     def admin_chat_ids(self) -> list[int]:
+        from bot.settings import admin_chat_id
+
+        group_id = admin_chat_id()
+        if group_id is not None:
+            return [group_id]
         chat_ids: list[int] = []
         for admin in self.admins.list_admins(platform=Platform.telegram):
             try:

@@ -28,6 +28,10 @@ def pass_role_setting_key(guild_id: str) -> str:
     return f"discord_pass_role:{guild_id}"
 
 
+def pass_duration_setting_key(guild_id: str) -> str:
+    return f"discord_pass_duration:{guild_id}"
+
+
 def _optional_id(name: str) -> str | None:
     value = os.environ.get(name, "").strip()
     if not value or value == "REPLACE_ME":
@@ -44,6 +48,18 @@ def _int_env(name: str, default: int) -> int:
     except ValueError:
         return default
     return parsed if parsed > 0 else default
+
+
+def _int_env_non_negative(name: str, default: int) -> int:
+    """Like ``_int_env`` but ``0`` is valid (e.g. unlimited pass duration)."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return default
+    return parsed if parsed >= 0 else default
 
 
 def _float_env(name: str, default: float) -> float:
@@ -74,6 +90,25 @@ def resolve_pass_role_id(
     if stored:
         return stored
     return config.role_id
+
+
+def resolve_pass_duration_sec(
+    db: _SettingsStore, guild_id: str, config: PassConfig
+) -> int:
+    """Per-guild duration; ``0`` = unlimited; missing key → config / env."""
+    raw = db.get_setting(pass_duration_setting_key(guild_id))
+    if raw is None:
+        return config.duration_sec
+    stripped = str(raw).strip()
+    if not stripped:
+        return config.duration_sec
+    try:
+        parsed = int(stripped)
+    except ValueError:
+        return config.duration_sec
+    if parsed < 0:
+        return config.duration_sec
+    return parsed
 
 
 @dataclass(frozen=True)
@@ -114,7 +149,9 @@ def load_pass_config() -> PassConfig:
         role_name=role_name or DEFAULT_ROLE_NAME,
         channel_name=channel_name or DEFAULT_CHANNEL_NAME,
         category_name=category_name or DEFAULT_CATEGORY_NAME,
-        duration_sec=_int_env("DISCORD_PASS_DURATION_SEC", DEFAULT_DURATION_SEC),
+        duration_sec=_int_env_non_negative(
+            "DISCORD_PASS_DURATION_SEC", DEFAULT_DURATION_SEC
+        ),
         reject_cooldown_sec=_int_env(
             "DISCORD_PASS_REJECT_COOLDOWN_SEC", DEFAULT_REJECT_COOLDOWN_SEC
         ),

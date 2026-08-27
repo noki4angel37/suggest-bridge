@@ -25,6 +25,7 @@
 
 | Канал | Назначение |
 |-------|------------|
+| `#изменения-бота` на Discord-сервере | Краткие анонсы новых функций бота (пишут бот и владелец) |
 | [GitHub Issues](https://github.com/noki4angel37/suggest-bridge/issues) | Баги, предложения по функциям |
 | [Wiki](https://github.com/noki4angel37/suggest-bridge/wiki) | Документация |
 | [Releases](https://github.com/noki4angel37/suggest-bridge/releases) | Скачать zip для Windows |

@@ -2,10 +2,14 @@
 
 Two permission levels:
 
-* bot-wide commands (admins, blacklist, antiflood) — only users listed as
-  Discord admins in the bridge database;
+* bot-wide commands (admins, blacklist, antiflood) — Discord admins from the
+  bridge database, or members holding any role from this guild's
+  `admin_role_ids` (set by the guild owner via `/admin_roles`); in DMs only
+  the admins table applies;
 * guild-scoped config (`/roles_propose`, `/roles_mod`, `/ratelimit_config`) —
-  Discord admins or members with the "Manage Server" permission.
+  bot admins (table or guild admin roles) or members with "Manage Server".
+
+`/admin_roles` itself is guild-owner only.
 
 Bootstrap: the first Discord admin is the `OWNER_DISCORD_ID` (seeded on
 startup) or is added by a Telegram admin with `/adddiscordadmin <discord_id>`;
@@ -58,6 +62,7 @@ from bot.adapters.admin_common import (
     parse_username_tag,
     resolve_admin_services,
 )
+from bot.adapters.discord import permissions
 from bot.core.models import GuildConfig, Platform
 from bot.core.pack_dist import build_suggest_bot_zip
 
@@ -66,11 +71,13 @@ DENY_BOT_ADMIN = (
     "Команда только для админов бота.\n"
     "Владелец: проверьте OWNER_DISCORD_ID в local.env (должен быть ваш Discord id) "
     "и перезапустите бота.\n"
-    "Или попросите Telegram-админа: /adddiscordadmin <ваш_discord_id>."
+    "Или попросите Telegram-админа: /adddiscordadmin <ваш_discord_id>.\n"
+    "На сервере: владелец может выдать доступ ролям через /admin_roles."
 )
 DENY_GUILD_ADMIN = (
     "Нужны права админа бота или «Управление сервером» на этом сервере."
 )
+DENY_GUILD_OWNER = "Команда только для владельца этого сервера Discord."
 GUILD_ONLY = "Команда работает только на сервере Discord."
 ROLE_PICKER_TIMEOUT_SEC = 180
 ANTIFLOOD_HINT = (
@@ -177,11 +184,44 @@ class DiscordAdminUI:
 
     # --- guards --------------------------------------------------------------
 
-    def is_bot_admin(self, user_id: int) -> bool:
-        return self.services.admins.can_manage(Platform.discord, str(user_id))
+    def is_bot_admin(
+        self,
+        user_id: int,
+        *,
+        guild_id: str | None = None,
+        member: Any | None = None,
+    ) -> bool:
+        """Table admin, or (in a guild) holder of configured admin roles."""
+        in_table = self.services.admins.can_manage(
+            Platform.discord, str(user_id)
+        )
+        if guild_id is None:
+            return in_table
+        config = self.services.guilds.get(guild_id)
+        if member is not None:
+            return permissions.member_is_bot_admin(
+                member, config, is_platform_admin=in_table
+            )
+        return permissions.can_bot_admin(
+            (),
+            config.admin_role_ids if config else (),
+            is_platform_admin=in_table,
+        )
+
+    def _is_bot_admin_interaction(
+        self, interaction: discord.Interaction
+    ) -> bool:
+        guild_id = (
+            str(interaction.guild_id) if interaction.guild_id is not None else None
+        )
+        return self.is_bot_admin(
+            interaction.user.id,
+            guild_id=guild_id,
+            member=interaction.user if guild_id is not None else None,
+        )
 
     def _may_configure_guild(self, interaction: discord.Interaction) -> bool:
-        if self.is_bot_admin(interaction.user.id):
+        if self._is_bot_admin_interaction(interaction):
             return True
         member = interaction.user
         perms = getattr(member, "guild_permissions", None)
@@ -190,7 +230,7 @@ class DiscordAdminUI:
     async def _require_bot_admin(
         self, interaction: discord.Interaction
     ) -> bool:
-        if self.is_bot_admin(interaction.user.id):
+        if self._is_bot_admin_interaction(interaction):
             return True
         await _reply(interaction, DENY_BOT_ADMIN)
         return False
@@ -203,6 +243,17 @@ class DiscordAdminUI:
             return None
         if not self._may_configure_guild(interaction):
             await _reply(interaction, DENY_GUILD_ADMIN)
+            return None
+        return str(interaction.guild_id)
+
+    async def _require_guild_owner(
+        self, interaction: discord.Interaction
+    ) -> str | None:
+        if interaction.guild is None or interaction.guild_id is None:
+            await _reply(interaction, GUILD_ONLY)
+            return None
+        if interaction.guild.owner_id != interaction.user.id:
+            await _reply(interaction, DENY_GUILD_OWNER)
             return None
         return str(interaction.guild_id)
 
@@ -414,6 +465,47 @@ class DiscordAdminUI:
             placeholder="Роли с доступом к модерации",
         )
 
+    async def admin_roles(self, interaction: discord.Interaction) -> None:
+        guild_id = await self._require_guild_owner(interaction)
+        if guild_id is None:
+            return
+        config = self.services.guilds.get_or_default(guild_id)
+        names = _role_names(interaction.guild, config.admin_role_ids)
+        lines = [
+            f"Роли админов бота на сервере {guild_id}:",
+            "",
+        ]
+        if config.admin_role_ids:
+            lines.extend(
+                f"• {names.get(rid, rid)} ({rid})"
+                if names.get(rid)
+                else f"• {rid}"
+                for rid in config.admin_role_ids
+            )
+        else:
+            lines.append("• не заданы (только админы из таблицы бота)")
+        lines.extend(
+            (
+                "",
+                "Выберите роли: носители получат все админ-команды бота на "
+                "этом сервере. «Сбросить» — убрать роли.",
+            )
+        )
+        view = RolePickerView(
+            services=self.services,
+            guild_id=guild_id,
+            field="admin_role_ids",
+            requester_id=interaction.user.id,
+            placeholder="Роли с правами админа бота",
+            kind_label="администрировать бота",
+        )
+        await interaction.response.send_message(
+            "\n".join(lines),
+            view=view,
+            ephemeral=True,
+            allowed_mentions=NO_MENTIONS,
+        )
+
     async def _roles_picker(
         self,
         interaction: discord.Interaction,
@@ -443,6 +535,33 @@ class DiscordAdminUI:
             ephemeral=True,
             allowed_mentions=NO_MENTIONS,
         )
+
+    # --- bot news ------------------------------------------------------------
+
+    async def bot_news(
+        self, interaction: discord.Interaction, text: str
+    ) -> None:
+        if not await self._require_bot_admin(interaction):
+            return
+        body = (text or "").strip()
+        if not body:
+            await _reply(interaction, "Нужен текст новости (3–8 строк).")
+            return
+        await interaction.response.defer(ephemeral=True)
+        try:
+            from bot.adapters.discord.bot_news import post_bot_news
+
+            message = await post_bot_news(interaction.client, text=body)
+        except Exception:  # noqa: BLE001
+            logger.exception("bot_news failed")
+            await _reply(
+                interaction,
+                "Не удалось отправить в канал изменений. "
+                "Проверьте DISCORD_BOT_NEWS_CHANNEL_ID и права бота.",
+            )
+            return
+        jump = getattr(message, "jump_url", None) or f"msg {message.id}"
+        await _reply(interaction, f"Опубликовано: {jump}")
 
     # --- antiflood / rate limit ---------------------------------------------
 
@@ -570,8 +689,10 @@ async def _reply(interaction: discord.Interaction, text: str) -> None:
 def register_discord_admin(bot: Any, services: Any) -> list[Any]:
     """Add admin slash commands to `bot.tree`; returns the added commands.
 
-    Call before `bot.tree.sync()`. Commands are global (usable in guilds and
-    in DMs with the bot); guild config commands are marked `guild_only`.
+    Call before guild slash publish. Commands live on each guild
+    (``copy_global_to`` + ``sync(guild)``); globals are cleared so the
+    Discord ``/`` picker does not show duplicates. Guild-only commands
+    are marked ``guild_only``.
     """
     resolved = resolve_admin_services(services)
     ui = DiscordAdminUI(resolved, container=services)
@@ -732,6 +853,25 @@ def register_discord_admin(bot: Any, services: Any) -> list[Any]:
         await ui.roles_mod(interaction)
 
     @app_commands.command(
+        name="admin_roles",
+        description="Роли с правами админа бота (только владелец сервера)",
+    )
+    @app_commands.guild_only()
+    async def admin_roles(interaction: discord.Interaction) -> None:
+        await ui.admin_roles(interaction)
+
+    @app_commands.command(
+        name=app_commands.locale_str("bot_news", ru="новости_бота"),
+        description="Краткий пост в #изменения-бота",
+    )
+    @app_commands.describe(text="3–8 строк для людей на сервере (+ ссылка на wiki)")
+    @app_commands.rename(text="текст")
+    async def bot_news(
+        interaction: discord.Interaction, text: str
+    ) -> None:
+        await ui.bot_news(interaction, text)
+
+    @app_commands.command(
         name="antiflood_config",
         description="Антифлуд: показать или изменить глобальные значения",
     )
@@ -776,6 +916,8 @@ def register_discord_admin(bot: Any, services: Any) -> list[Any]:
         blocked_list,
         roles_propose,
         roles_mod,
+        admin_roles,
+        bot_news,
         antiflood_config,
         ratelimit_config,
     ]

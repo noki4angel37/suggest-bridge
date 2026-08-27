@@ -58,6 +58,7 @@ English: [README.en.md](README.en.md) · **Документация:** [Wiki](ht
 | Зеркало | Синхронизация ленты TG ↔ Discord |
 | Настройка сервера | `/setup_suggest`, `/setup_pass`, `/decorate_server` (категории, ACL, emoji┃имена) |
 | Multi-PC | `/host` + Windows-агент для нескольких ПК админов |
+| Operator audit | JSONL `data/events.jsonl` (bridge mode); `SUGGEST_EVENT_LOG` overrides path |
 | Режимы | Только TG, только Discord, или оба |
 
 ### Как это работает

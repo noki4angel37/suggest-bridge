@@ -120,22 +120,40 @@ class Scheduler:
         assert submission_id is not None
         self._in_flight.add(submission_id)
         try:
-            result = await self.publish_callback(submission)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception(
-                "Не удалось опубликовать заявку %s, повтор позже", submission_id
-            )
-            return False
-        else:
-            target_id, message_id = extract_publish_ref(result)
-            await self.moderation.mark_published(
-                submission_id,
-                platform=self.platform,
-                target_id=target_id,
-                message_id=message_id,
-            )
+            try:
+                result = await self.publish_callback(submission)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Не удалось опубликовать заявку %s, повтор позже",
+                    submission_id,
+                )
+                return False
+
+            try:
+                target_id, message_id = extract_publish_ref(result)
+                await self.moderation.mark_published(
+                    submission_id,
+                    platform=self.platform,
+                    target_id=target_id,
+                    message_id=message_id,
+                )
+            except Exception:
+                logger.exception(
+                    "mark_published failed after publish for %s", submission_id
+                )
+                if not self.db.update_submission_cas(
+                    submission_id,
+                    (
+                        SubmissionStatus.approved,
+                        SubmissionStatus.scheduled,
+                    ),
+                    status=SubmissionStatus.published,
+                    published_at=utcnow(),
+                ):
+                    return False
+
             logger.info(
                 "Заявка %s опубликована по расписанию", submission_id
             )

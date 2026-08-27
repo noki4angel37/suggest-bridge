@@ -38,10 +38,14 @@ if ($InstallDeps -or -not (Test-Path -LiteralPath $Python)) {
     & $Python -m pip install -r $Req
 }
 
-Write-Host "suggest-bridge agent HOST_ID=$($env:HOST_ID) sync=$($env:HOST_SYNC_DIR)"
+$DataDir = Join-Path $BotDir "data"
+New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
+$AgentLog = Join-Path $DataDir "agent.log"
+
+Write-Host "suggest-bridge agent HOST_ID=$($env:HOST_ID) sync=$($env:HOST_SYNC_DIR) log=$AgentLog"
 Push-Location $BotDir
 try {
-    & $Python -m bot.agent
+    & $Python -m bot.agent *>&1 | Tee-Object -FilePath $AgentLog -Append
     exit $LASTEXITCODE
 }
 finally {

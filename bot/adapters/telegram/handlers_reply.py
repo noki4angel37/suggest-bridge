@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -16,12 +17,25 @@ from bot.core import Platform, Source
 
 logger = logging.getLogger(__name__)
 
+REPLY_FSM_TTL_SEC = 900
+
 NOT_FOUND_TEXT = "Заявка не найдена."
 HANDLED_TEXT = "Заявка уже обработана."
 EXPIRED_TEXT = "Сессия истекла, начните заново с карточки заявки."
 DISCORD_AUTHOR_TEXT = (
     "Автор заявки пришёл из Discord — ответьте ему в Discord."
 )
+
+
+async def _ensure_fsm_fresh(state: FSMContext) -> bool:
+    data = await state.get_data()
+    started = data.get("fsm_started_at")
+    if started is None:
+        return True
+    if time.time() - float(started) > REPLY_FSM_TTL_SEC:
+        await state.clear()
+        return False
+    return True
 
 
 async def cmd_cancel(message: Message, state: FSMContext) -> None:
@@ -37,7 +51,7 @@ async def reject_with_reason(
 ) -> None:
     data = await state.get_data()
     submission_id = data.get("submission_id")
-    if submission_id is None:
+    if submission_id is None or not await _ensure_fsm_fresh(state):
         await state.set_state(None)
         await message.answer(EXPIRED_TEXT)
         return
@@ -73,7 +87,7 @@ async def reply_to_author(
 ) -> None:
     data = await state.get_data()
     submission_id = data.get("submission_id")
-    if submission_id is None:
+    if submission_id is None or not await _ensure_fsm_fresh(state):
         await state.set_state(None)
         await message.answer(EXPIRED_TEXT)
         return

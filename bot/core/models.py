@@ -160,6 +160,7 @@ class GuildConfig:
     publish_channel_id: str | None = None
     propose_role_ids: list[str] = field(default_factory=list)
     mod_role_ids: list[str] = field(default_factory=list)
+    admin_role_ids: list[str] = field(default_factory=list)
     rate_limit_enabled: bool = False
     rate_limit_count: int | None = None
     rate_limit_window_sec: int | None = None

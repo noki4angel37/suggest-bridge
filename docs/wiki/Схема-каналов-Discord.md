@@ -12,7 +12,7 @@
 | `SETUP_SUGGEST_CHANNEL_NAME` | `посты-предложения` | Канал **приёма** заявок |
 | `SETUP_MOD_CHANNEL_NAME` | `модерация-предложки` | Канал модераторов (опционально) |
 | `SETUP_PUBLISH_CHANNEL_NAME` | `предложка` | **Лента** одобренных публикаций |
-| `SETUP_PUBLISH_CHANNEL_ALIASES` | `посты-опубликованно` | Legacy-имя ленты (при rebind) |
+| `SETUP_PUBLISH_CHANNEL_ALIASES` | `посты-опубликованно,посты-опубликовано` | Legacy-имена ленты (при rebind). `/decorate_server` вешает на них announce-ACL: участники только читают. |
 | `SETUP_EDITOR_ROLE_NAME` | `недоадмин` | Роль редакторов ленты публикации |
 
 Связанные (не `SETUP_*`, но в подписи постов): `SUGGEST_HASHTAG` (`#предложка`), `ANON_NAME` (`Аноним`).
@@ -87,7 +87,7 @@ Discord Server
 | Owner guild / invoker decorate | ✅ | ✅ | ✅ (break-glass) |
 | Бот | ✅ | ✅ | ✅ |
 
-Участники **читают** ленту, но не публикуют вручную — только модерация и редакторы.
+Участники **читают** ленту, но не публикуют вручную — только модерация и редакторы. То же announce-ACL `/decorate_server` ставит на leftover-каналы из `SETUP_PUBLISH_CHANNEL_ALIASES` (`#посты-опубликовано` / `#посты-опубликованно`).
 
 ### Закрытые каналы (`/setup_pass`)
 

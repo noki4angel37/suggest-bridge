@@ -530,13 +530,19 @@ def get_request(db: BridgeDatabase, request_id: str) -> TransferRequest | None:
 
 
 def _update_request(
-    db: BridgeDatabase, request_id: str, **changes: Any
+    db: BridgeDatabase,
+    request_id: str,
+    *,
+    expected_status: str | None = None,
+    **changes: Any,
 ) -> TransferRequest:
     items = list_all_requests(db)
     found: TransferRequest | None = None
     for idx, item in enumerate(items):
         if item.id != request_id:
             continue
+        if expected_status is not None and item.status != expected_status:
+            raise HostControlError("Запрос уже закрыт.")
         data = item.to_dict()
         data.update(changes)
         data["updated_at"] = _to_iso()
@@ -570,6 +576,61 @@ def cancel_request(
     return updated
 
 
+def _actor_platform_id(actor: str) -> tuple[str, str]:
+    """Return (platform_prefix, user_id) for ``tg:123`` / ``ds:456``."""
+    if actor.startswith("ds:"):
+        return "ds", actor.removeprefix("ds:")
+    if actor.startswith("tg:"):
+        return "tg", actor.removeprefix("tg:")
+    return "", actor
+
+
+def _actor_may_decide_request(
+    db: BridgeDatabase, req: TransferRequest, actor: str
+) -> None:
+    """Authorize accept/reject: claim → holder or owner; offer → to_admin or owner."""
+    _platform, actor_id = _actor_platform_id(actor)
+    holder = db.get_setting(KEY_HOLDER_ADMIN)
+    if is_owner_telegram(actor_id) or is_owner_discord(actor_id):
+        return
+    if req.kind == "claim":
+        if holder and holder == actor_id:
+            return
+        raise HostControlError(
+            "Принять или отклонить claim может только текущий держатель primary "
+            "или супер-админ."
+        )
+    if req.kind == "offer":
+        if req.to_admin and req.to_admin == actor_id:
+            return
+        raise HostControlError(
+            "Принять или отклонить offer может только адресат или супер-админ."
+        )
+    raise HostControlError("Недостаточно прав для этого запроса.")
+
+
+def resolve_actor_host(
+    sync: HostSyncStore,
+    *,
+    actor: str,
+) -> str:
+    """Registry host id for the admin who invoked a host action (not primary HOST_ID)."""
+    platform, actor_id = _actor_platform_id(actor)
+    if platform == "tg":
+        hosts = find_hosts_for_admin(sync, telegram_id=actor_id)
+    elif platform == "ds":
+        hosts = find_hosts_for_admin(sync, discord_id=actor_id)
+    else:
+        hosts = []
+    online = [h for h in hosts if entry_is_online(h)]
+    if online:
+        return online[0].host_id
+    raise HostControlError(
+        "На вашем аккаунте нет онлайн-агента. Установите агент на этот ПК "
+        "и дождитесь появления в /host."
+    )
+
+
 def reject_request(
     db: BridgeDatabase,
     sync: HostSyncStore,
@@ -580,7 +641,10 @@ def reject_request(
     req = get_request(db, request_id)
     if req is None or req.status != "pending":
         raise HostControlError("Запрос уже закрыт.")
-    updated = _update_request(db, request_id, status="rejected")
+    _actor_may_decide_request(db, req, actor)
+    updated = _update_request(
+        db, request_id, expected_status="pending", status="rejected"
+    )
     append_audit(db, actor=actor, action="reject_request", detail=request_id)
     mirror_state(db, sync)
     return updated
@@ -597,8 +661,11 @@ def accept_request(
     req = get_request(db, request_id)
     if req is None or req.status != "pending":
         raise HostControlError("Запрос уже закрыт.")
+    _actor_may_decide_request(db, req, actor)
     entry = require_discord_capable(find_registry_host(sync, req.to_host))
-    updated = _update_request(db, request_id, status="accepted")
+    updated = _update_request(
+        db, request_id, expected_status="pending", status="accepted"
+    )
     sync.write_command(
         req.to_host,
         HostCommand(
@@ -742,7 +809,7 @@ def stop_local_and_failover_owner(
     local_host: str | None = None,
 ) -> str:
     """Admin stops bot on own PC → try start on owner PC."""
-    hid = local_host or resolve_host_id()
+    hid = local_host or resolve_actor_host(sync, actor=actor)
     issue_stop(db, sync, host_id=hid, actor=actor)
     owner_tg = owner_telegram_id()
     owner_hosts = [
@@ -961,6 +1028,7 @@ __all__ = [
     "process_ack",
     "reject_request",
     "release",
+    "resolve_actor_host",
     "renew",
     "require_consent",
     "require_discord_capable",

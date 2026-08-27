@@ -92,7 +92,9 @@ def build_card_embed(
     # embeds (especially after the source message is deleted). Preview
     # must be a re-uploaded `discord.File` + attachment://.
 
-    embed.set_footer(text=f"Заявка №{submission.id}")
+    from bot.core.rules import display_sid
+
+    embed.set_footer(text=f"Заявка {display_sid(submission.id)}")
     return embed
 
 
@@ -190,7 +192,7 @@ def build_moderation_view(
         on_target_tg=on_target_tg,
         on_target_ds=on_target_ds,
         on_target_both=on_target_both,
-        can_decide=not rules.is_handled(submission.status),
+        can_decide=rules.can_moderate_decide(submission),
         can_schedule=not rules.is_terminal(submission.status),
         can_edit=can_edit,
         publish_target=submission.publish_target.value,
@@ -312,13 +314,23 @@ async def handle_approve(
 async def approve_submission(
     ctx: DiscordContext, submission_id: int, *, moderator_id: str | None
 ) -> bool:
-    """Approve and hand the post over; returns True if already handled.
+    """Approve and hand the post over; returns True if already handled."""
+    from bot.core.publisher import extract_publish_ref
 
-    With an injected publish hook the shared core flow publishes right away and
-    marks the submission published. Without a hook the post is due immediately,
-    so Agent D's scheduler picks it up on the next tick — the Discord adapter
-    never talks to the Telegram channel itself.
-    """
+    current = ctx.services.submissions.get(submission_id)
+    if current and rules.needs_publish_retry(current):
+        if ctx.publish is None:
+            raise RuntimeError("Publish hook not configured")
+        result = await ctx.publish(current)
+        target_id, message_id = extract_publish_ref(result)
+        await ctx.services.moderation.mark_published(
+            submission_id,
+            platform=Platform.discord,
+            target_id=target_id,
+            message_id=message_id,
+        )
+        return False
+
     if ctx.publish is not None:
         current = ctx.services.submissions.get(submission_id)
         outcome = await finalize_approval(
@@ -501,28 +513,10 @@ async def resolve_channel(
 
 
 async def _download_url_bytes(url: str, *, timeout_sec: float = 30.0) -> bytes | None:
-    """Fetch Discord CDN (or any) attachment bytes for moderation preview."""
-    import aiohttp
+    from bot.core.safe_fetch import fetch_url_bytes
 
-    try:
-        from bot.core.media_store import DOWNLOAD_HEADERS
-
-        timeout = aiohttp.ClientTimeout(total=timeout_sec)
-        async with aiohttp.ClientSession(
-            timeout=timeout, headers=DOWNLOAD_HEADERS
-        ) as session:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                data = await response.read()
-        # Discord message attachment limit is well above typical photos;
-        # keep a hard cap so a huge file cannot break the mod channel.
-        if len(data) > 8 * 1024 * 1024:
-            logger.warning("Превью слишком большое (%s bytes), пропускаю", len(data))
-            return None
-        return data
-    except Exception:  # noqa: BLE001
-        logger.exception("Не удалось скачать URL для превью модерации")
-        return None
+    data = await fetch_url_bytes(url, timeout_sec=timeout_sec, max_bytes=8 * 1024 * 1024)
+    return data
 
 
 def _preview_suffix(content_type: ContentType) -> str:
@@ -694,7 +688,18 @@ async def post_moderation_card(
         target_id=target_id,
         message_id=str(message.id),
     )
-    _ = guild_id_for_persist
+    if guild_id_for_persist and not submission.guild_id:
+        try:
+            ctx.services.submissions.db.update_submission(
+                int(submission.id), guild_id=guild_id_for_persist
+            )
+        except Exception:  # noqa: BLE001
+            logger.debug(
+                'Could not persist guild_id=%s for submission %s',
+                guild_id_for_persist,
+                submission.id,
+                exc_info=True,
+            )
     return message
 
 

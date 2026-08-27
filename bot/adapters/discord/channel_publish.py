@@ -103,6 +103,7 @@ class DiscordChannelPublisher:
             target_id=str(target.id),
             message_ids=(str(message.id),),
         )
+        await self._maybe_create_thread(message, plan.submission_id)
         logger.info(
             "Заявка %s отправлена в Discord #%s (%s)",
             plan.submission_id,
@@ -110,6 +111,24 @@ class DiscordChannelPublisher:
             plan.mode.value,
         )
         return result
+
+    async def _maybe_create_thread(
+        self, message: discord.Message, submission_id: int | None
+    ) -> None:
+        from bot.core.rules import display_sid
+        from bot.settings import discord_publish_threads
+
+        if not discord_publish_threads():
+            return
+        name = (
+            f"Заявка {display_sid(submission_id)}"
+            if submission_id is not None
+            else "Обсуждение"
+        )
+        try:
+            await message.create_thread(name=name[:100], auto_archive_duration=1440)
+        except (discord.HTTPException, discord.Forbidden) as exc:
+            logger.info("Не удалось создать тред публикации: %s", exc)
 
     async def delete_message(self, channel_id: str, message_id: str) -> None:
         client = self._require_client()

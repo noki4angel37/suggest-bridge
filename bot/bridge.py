@@ -156,6 +156,10 @@ def build_bridge(config: BridgeConfig, *, bot: Bot | None = None) -> Bridge:
         services = ServiceBundle.from_db(db, bus=bus)
         dp = None
 
+    from bot.core.event_log import attach_event_log
+
+    attach_event_log(bus)
+
     assert services.guilds is not None
     discord_publisher = DiscordChannelPublisher(
         services.guilds, telegram_bot=telegram_bot
@@ -335,6 +339,33 @@ async def run_bridge(config: BridgeConfig | None = None) -> int:
             bridge.run_discord(), name="discord-adapter"
         )
 
+    health_task: asyncio.Task[None] | None = None
+    try:
+        from bot.health import start_health_server
+
+        def _telegram_ok() -> bool:
+            return bool(telegram_enabled and bridge.bot is not None)
+
+        def _discord_ok() -> bool:
+            if not discord_enabled:
+                return True
+            return bridge._discord_client is not None
+
+        def _lease_ok() -> bool:
+            if not telegram_enabled:
+                return True
+            from bot.core.host_lease import is_primary as is_host_primary
+
+            return is_host_primary(bridge.db, host_id)
+
+        health_task = await start_health_server(
+            telegram_ok=_telegram_ok if telegram_enabled else None,
+            discord_ok=_discord_ok if discord_enabled else None,
+            lease_ok=_lease_ok if telegram_enabled else None,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("Health server failed to start")
+
     try:
         if telegram_enabled and bridge.dp is not None and bridge.bot is not None:
             while True:
@@ -357,6 +388,12 @@ async def run_bridge(config: BridgeConfig | None = None) -> int:
             logger.error("No platform adapters enabled")
             return 1
     finally:
+        if health_task is not None:
+            health_task.cancel()
+            try:
+                await health_task
+            except asyncio.CancelledError:
+                pass
         if heartbeat_task is not None:
             heartbeat_task.cancel()
         control_task.cancel()

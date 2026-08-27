@@ -23,6 +23,7 @@ from bot.adapters.discord.guild_decorate import GuildDecorateCog
 from bot.adapters.discord.guild_setup import GuildSetupCog
 from bot.adapters.discord.mirror import ChannelMirrorService, MirrorCog
 from bot.adapters.discord.moderation import restore_moderation_views
+from bot.adapters.discord.pass_guard import PassGuardCog
 from bot.adapters.discord.pass_request import PassCog
 from bot.adapters.discord.pass_rooms import PassRoomsCog
 from bot.adapters.discord.suggest import SuggestCog
@@ -98,6 +99,9 @@ class SuggestBot(commands.Bot):
             await self.add_cog(
                 PassRoomsCog(self, self.ctx, db, pass_config)
             )
+            await self.add_cog(
+                PassGuardCog(self, self.ctx, db, pass_config)
+            )
         if self.mirror is not None:
             self.mirror.bind_discord(self)
             await self.add_cog(MirrorCog(self, self.mirror))
@@ -107,6 +111,29 @@ class SuggestBot(commands.Bot):
         register_discord_host(self, self.ctx.services)
         self.event_sync.register()
         await self.tree.set_translator(RuExtrasTranslator())
+
+        async def _log_slash_interaction(interaction: discord.Interaction) -> None:
+            if interaction.type is not discord.InteractionType.application_command:
+                return
+            name = getattr(interaction.command, "qualified_name", None) or "?"
+            actor = f"ds:{interaction.user.id}" if interaction.user else None
+            try:
+                from bot.core.event_log import append_event
+
+                append_event(
+                    "command.discord",
+                    summary=f"/{name} от {actor or '?'}",
+                    actor=actor,
+                    data={
+                        "command": name,
+                        "guild_id": interaction.guild_id,
+                        "channel_id": interaction.channel_id,
+                    },
+                )
+            except Exception:  # noqa: BLE001
+                pass
+
+        self.add_listener(_log_slash_interaction, "on_interaction")
 
         @self.tree.error
         async def on_app_command_error(
@@ -133,6 +160,8 @@ class SuggestBot(commands.Bot):
 
         if self.sync_commands:
             try:
+                # One bucket only: global. Guild copies are cleared on ready —
+                # otherwise Discord shows each command twice (global + guild).
                 commands_synced = await self.tree.sync()
                 logger.info(
                     "Слэш-команды (global) синхронизированы: %s [%s]",
@@ -158,14 +187,10 @@ class SuggestBot(commands.Bot):
             from bot.adapters.discord.host_panel import ensure_mod_host_panels
 
             try:
-                n_new = await self._publish_slash_to_guilds()
-                logger.info(
-                    "Slash on guilds: %s ready (%s newly published)",
-                    len(self._slash_guilds_synced),
-                    n_new,
-                )
+                n = await self._clear_guild_slash_buckets()
+                logger.info("Guild slash buckets cleared: %s", n)
             except Exception:  # noqa: BLE001
-                logger.exception("Guild slash publish failed")
+                logger.exception("Guild slash clear failed")
             try:
                 panels = await ensure_mod_host_panels(self, self.ctx.services)
                 logger.info("Host panels in mod channels: %s", panels)
@@ -179,40 +204,39 @@ class SuggestBot(commands.Bot):
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         if self.sync_commands:
-            await self._publish_slash_to_guild(guild)
+            await self._clear_guild_slash_bucket(guild)
 
     async def on_guild_available(self, guild: discord.Guild) -> None:
         if self.sync_commands:
-            await self._publish_slash_to_guild(guild)
+            await self._clear_guild_slash_bucket(guild)
 
-    async def _publish_slash_to_guild(self, guild: discord.Guild) -> bool:
-        """Copy global slash commands onto a guild so they appear immediately."""
+    async def _clear_guild_slash_bucket(self, guild: discord.Guild) -> bool:
+        """Empty per-guild slash so only global commands remain in the picker."""
         async with self._slash_publish_lock:
             if guild.id in self._slash_guilds_synced:
                 return False
             try:
-                self.tree.copy_global_to(guild=guild)
-                synced = await self.tree.sync(guild=guild)
+                self.tree.clear_commands(guild=guild)
+                await self.tree.sync(guild=guild)
                 self._slash_guilds_synced.add(guild.id)
-                logger.info(
-                    "Guild %s slash: %s [%s]",
-                    guild.id,
-                    len(synced),
-                    ", ".join(cmd.name for cmd in synced),
-                )
+                logger.info("Guild %s: slash overrides cleared", guild.id)
                 return True
             except discord.HTTPException:
                 logger.exception(
-                    "Не удалось опубликовать slash для guild %s", guild.id
+                    "Не удалось очистить guild slash для %s", guild.id
                 )
                 return False
 
-    async def _publish_slash_to_guilds(self) -> int:
-        published = 0
+    async def _clear_guild_slash_buckets(self) -> int:
+        cleared = 0
         for guild in list(self.guilds):
-            if await self._publish_slash_to_guild(guild):
-                published += 1
-        return published
+            if await self._clear_guild_slash_bucket(guild):
+                cleared += 1
+        return cleared
+
+    async def _publish_slash_to_guilds(self) -> int:
+        """Deprecated: guild copies caused duplicate / picker rows."""
+        return await self._clear_guild_slash_buckets()
 
     async def _sync_guild_channels(self) -> None:
         """Bind suggest/publish channel ids by name when config is incomplete."""

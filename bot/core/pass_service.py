@@ -4,14 +4,27 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from bot.core.db import BridgeDatabase
 from bot.core.models import PassRequest, PassRequestStatus, utcnow
-from bot.core.pass_config import PassConfig, load_pass_config, resolve_pass_role_id
+from bot.core.pass_config import (
+    PassConfig,
+    load_pass_config,
+    resolve_pass_duration_sec,
+    resolve_pass_role_id,
+)
 
 NowFn = Callable[[], datetime]
 ClockFn = Callable[[], float]
+MIN_EXPIRY_SLEEP_SEC = 0.5
+RETRY_REVOKE_SLEEP_SEC = 5.0
+
+
+def _utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def format_remaining(seconds: float) -> str:
@@ -27,6 +40,13 @@ def format_remaining(seconds: float) -> str:
     if sec and minutes < 3:
         return f"{minutes} мин {sec} с"
     return f"{minutes} мин"
+
+
+def format_pass_duration(duration_sec: int) -> str:
+    """Human label for grant length; ``0`` means unlimited."""
+    if duration_sec == 0:
+        return "без ограничения"
+    return format_remaining(duration_sec)
 
 
 @dataclass(frozen=True)
@@ -65,6 +85,9 @@ class PassService:
     def role_id_for(self, guild_id: str) -> str | None:
         return resolve_pass_role_id(self.db, guild_id, self.config)
 
+    def duration_sec_for(self, guild_id: str) -> int:
+        return resolve_pass_duration_sec(self.db, guild_id, self.config)
+
     def get(self, request_id: int) -> PassRequest | None:
         return self.db.get_pass_request(request_id)
 
@@ -80,6 +103,25 @@ class PassService:
 
     def due_grants(self) -> list[PassRequest]:
         return self.db.list_due_pass_grants(now=self._now())
+
+    def next_sleep_sec(self) -> float:
+        """Wait until the nearest timed grant expiry. Short retry if something is due."""
+        if self.due_grants():
+            return min(RETRY_REVOKE_SLEEP_SEC, self.config.expiry_poll_sec)
+        now = _utc(self._now())
+        soonest: datetime | None = None
+        for request in self.db.list_approved_pass_grants():
+            if request.expires_at is None:
+                continue
+            expires = _utc(request.expires_at)
+            if expires <= now:
+                continue
+            if soonest is None or expires < soonest:
+                soonest = expires
+        if soonest is None:
+            return self.config.expiry_poll_sec
+        remaining = (soonest - now).total_seconds()
+        return max(MIN_EXPIRY_SLEEP_SEC, remaining)
 
     def save_mod_ref(
         self, request: PassRequest, *, channel_id: str, message_id: str
@@ -164,7 +206,13 @@ class PassService:
                 message=f"У вас уже есть роль «{cfg.label}».",
             )
         active = self.db.get_active_pass(guild_id, user_id, now=now)
-        if active is not None and active.expires_at is not None:
+        if active is not None:
+            if active.expires_at is None:
+                return PassCreateResult(
+                    ok=False,
+                    reason="active",
+                    message="Проходка уже выдана без ограничения по времени.",
+                )
             wait = (active.expires_at - now).total_seconds()
             return PassCreateResult(
                 ok=False,
@@ -211,9 +259,7 @@ class PassService:
                 message="Заявка уже в модерации предложки — дождитесь решения.",
                 request=existing,
             )
-        hours = cfg.duration_sec // 3600
-        minutes = (cfg.duration_sec % 3600) // 60
-        duration = f"{hours} ч" if not minutes else f"{hours} ч {minutes} мин"
+        duration = format_pass_duration(self.duration_sec_for(guild_id))
         return PassCreateResult(
             ok=True,
             reason="created",
@@ -253,8 +299,18 @@ class PassService:
     def approve(
         self, request_id: int, *, decided_by: str
     ) -> PassDecideResult:
+        current = self.db.get_pass_request(request_id)
+        if current is None:
+            return PassDecideResult(
+                ok=False, reason="missing", message="Заявка не найдена."
+            )
         now = self._now()
-        expires_at = now + timedelta(seconds=self.config.duration_sec)
+        duration_sec = self.duration_sec_for(current.guild_id)
+        expires_at = (
+            None
+            if duration_sec == 0
+            else now + timedelta(seconds=duration_sec)
+        )
         updated = self.db.claim_pass_decision(
             request_id,
             expected_status=PassRequestStatus.pending,
@@ -275,13 +331,17 @@ class PassService:
                 message="Эту заявку уже разобрали.",
                 request=current,
             )
+        if duration_sec == 0:
+            message = f"Выдана «{self.config.label}» без ограничения."
+        else:
+            message = (
+                f"Выдана «{self.config.label}» на "
+                f"{format_remaining(duration_sec)}."
+            )
         return PassDecideResult(
             ok=True,
             reason="approved",
-            message=(
-                f"Выдана «{self.config.label}» на "
-                f"{format_remaining(self.config.duration_sec)}."
-            ),
+            message=message,
             request=updated,
         )
 

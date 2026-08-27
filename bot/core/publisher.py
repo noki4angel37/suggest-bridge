@@ -132,16 +132,30 @@ def build_publish_plan(
 
 def extract_publish_ref(result: object) -> tuple[str | None, str | None]:
     """Pull (target_id, message_id) out of whatever a publish callback returned."""
+    target_id, message_id, _ = extract_publish_refs(result)
+    return target_id, message_id
+
+
+def extract_publish_refs(
+    result: object,
+) -> tuple[str | None, str | None, tuple[str, ...]]:
+    """Pull (target_id, primary_message_id, all_message_ids) from publish result."""
     if result is None:
-        return None, None
+        return None, None, ()
     if isinstance(result, tuple) and len(result) == 2:
         target, message = result
-        return _as_str(target), _as_str(message)
+        mid = _as_str(message)
+        return _as_str(target), mid, (mid,) if mid else ()
     target = getattr(result, "target_id", None)
     if target is None:
-        # Telegram publishers name the same field `chat_id`.
         target = getattr(result, "chat_id", None)
-    return _as_str(target), _as_str(getattr(result, "message_id", None))
+    all_ids = getattr(result, "message_ids", None)
+    if all_ids:
+        ids = tuple(str(x) for x in all_ids if x is not None)
+        primary = ids[0] if ids else None
+        return _as_str(target), primary, ids
+    mid = _as_str(getattr(result, "message_id", None))
+    return _as_str(target), mid, (mid,) if mid else ()
 
 
 def _as_str(value: object) -> str | None:

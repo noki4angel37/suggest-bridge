@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from datetime import datetime, timedelta, timezone
 
 from aiogram import F, Router
@@ -452,7 +453,7 @@ async def reject_reason_prompt(
     if submission is None:
         return
     await state.set_state(AdminReject.waiting_reason)
-    await state.update_data(submission_id=submission.id)
+    await state.update_data(submission_id=submission.id, fsm_started_at=time.time())
     await callback.answer()
     if isinstance(callback.message, Message):
         await callback.message.answer(
@@ -472,7 +473,7 @@ async def reply_prompt(
         await callback.answer(NOT_FOUND_TEXT, show_alert=True)
         return
     await state.set_state(AdminReply.waiting_text)
-    await state.update_data(submission_id=submission.id)
+    await state.update_data(submission_id=submission.id, fsm_started_at=time.time())
     await callback.answer()
     if isinstance(callback.message, Message):
         await callback.message.answer(

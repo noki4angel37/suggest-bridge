@@ -119,24 +119,12 @@ async def fetch_url_bytes(
     max_bytes: int = MAX_DOWNLOAD_BYTES,
     timeout_sec: float = DOWNLOAD_TIMEOUT_SEC,
 ) -> bytes | None:
-    """GET ``url`` with a Discord bot User-Agent; None on failure/oversize."""
-    try:
-        timeout = aiohttp.ClientTimeout(total=timeout_sec)
-        async with aiohttp.ClientSession(
-            timeout=timeout, headers=DOWNLOAD_HEADERS
-        ) as session:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                data = await response.read()
-        if len(data) > max_bytes:
-            logger.warning(
-                "Вложение слишком большое для кэша (%s bytes)", len(data)
-            )
-            return None
-        return data
-    except Exception:  # noqa: BLE001
-        logger.exception("Не удалось скачать вложение: %s", url)
-        return None
+    """GET allowlisted CDN URL; None on failure/oversize."""
+    from bot.core.safe_fetch import fetch_url_bytes as _safe_fetch
+
+    return await _safe_fetch(
+        url, max_bytes=max_bytes, timeout_sec=timeout_sec, headers=DOWNLOAD_HEADERS
+    )
 
 
 async def download_url(

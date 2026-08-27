@@ -18,10 +18,13 @@ from bot.core.host_control import (
     is_owner_discord,
     is_owner_telegram,
     list_pending,
+    mark_primary_started,
     owner_force_to_host,
     panel_snapshot,
     reject_request,
     require_discord_capable,
+    resolve_actor_host,
+    stop_local_and_failover_owner,
 )
 from bot.core.host_lease import claim, resolve_host_id
 from bot.core.host_sync import (
@@ -103,7 +106,9 @@ def test_accept_writes_prepare_command(
     db: BridgeDatabase, sync: HostSyncStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("HOST_REQUIRE_CONSENT", raising=False)
+    monkeypatch.setenv("OWNER_TELEGRAM_ID", "111")
     claim(db, "pc-old:u")
+    mark_primary_started(db, "pc-old:u", holder_admin="111")
     sync.write_registry(_online_entry("pc-new:u", tg="222"))
     req = create_claim_request(db, sync, admin_id="222", target_host="pc-new:u")
     accept_request(db, sync, request_id=req.id, actor="tg:111")
@@ -112,13 +117,49 @@ def test_accept_writes_prepare_command(
     assert cmd.action == "prepare"
 
 
+def test_accept_reject_unauthorized(
+    db: BridgeDatabase, sync: HostSyncStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("HOST_REQUIRE_CONSENT", raising=False)
+    monkeypatch.setenv("OWNER_TELEGRAM_ID", "999")
+    claim(db, "pc-old:u")
+    mark_primary_started(db, "pc-old:u", holder_admin="111")
+    sync.write_registry(_online_entry("pc-new:u", tg="222"))
+    req = create_claim_request(db, sync, admin_id="222", target_host="pc-new:u")
+    with pytest.raises(HostControlError, match="держатель"):
+        accept_request(db, sync, request_id=req.id, actor="tg:222")
+    with pytest.raises(HostControlError, match="держатель"):
+        reject_request(db, sync, request_id=req.id, actor="tg:222")
+    accept_request(db, sync, request_id=req.id, actor="tg:999")
+
+
+def test_stop_local_uses_actor_registry_not_primary(
+    db: BridgeDatabase, sync: HostSyncStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OWNER_TELEGRAM_ID", "111")
+    claim(db, "primary-pc:u")
+    sync.write_registry(_online_entry("admin-pc:u", tg="222"))
+    sync.write_registry(_online_entry("owner-pc:u", tg="111"))
+    hid = resolve_actor_host(sync, actor="tg:222")
+    assert hid == "admin-pc:u"
+    msg = stop_local_and_failover_owner(
+        db, sync, actor="tg:222", local_host=hid
+    )
+    assert "admin-pc:u" in msg
+    cmd = sync.read_command("admin-pc:u")
+    assert cmd is not None and cmd.action == "stop"
+
+
 def test_reject_and_cooldown(
     db: BridgeDatabase, sync: HostSyncStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("HOST_REQUEST_COOLDOWN_SEC", "60")
+    monkeypatch.setenv("OWNER_TELEGRAM_ID", "111")
+    claim(db, "pc-old:u")
+    mark_primary_started(db, "pc-old:u", holder_admin="111")
     sync.write_registry(_online_entry("pc-b:u", tg="333"))
     req = create_claim_request(db, sync, admin_id="333", target_host="pc-b:u")
-    reject_request(db, sync, request_id=req.id, actor="tg:1")
+    reject_request(db, sync, request_id=req.id, actor="tg:111")
     with pytest.raises(HostControlError, match="частые"):
         create_claim_request(db, sync, admin_id="333", target_host="pc-b:u")
 

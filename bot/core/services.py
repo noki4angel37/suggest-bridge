@@ -173,6 +173,15 @@ class SubmissionService:
         rules.ensure_transition(submission.status, SubmissionStatus.pending)
         if not (submission.text or submission.media):
             raise ValueError("Заявка пустая: нет текста и медиа")
+        from bot.settings import keyword_blocklist
+
+        blocked = rules.text_blocked_by_keywords(
+            rules.submission_filter_text(submission), keyword_blocklist()
+        )
+        if blocked:
+            raise ValueError(
+                "Текст отклонён фильтром. Уберите запрещённые слова и попробуйте снова."
+            )
         self.db.update_submission(submission_id, status=SubmissionStatus.pending)
         updated = self._require(submission_id)
         await self.bus.publish(SubmissionSubmitted(submission=updated))
@@ -306,9 +315,17 @@ class ModerationService:
             else SubmissionStatus.approved
         )
         rules.ensure_transition(submission.status, target)
-        self.db.update_submission(
-            submission_id, status=target, scheduled_at=scheduled_at
+        ok = self.db.update_submission_cas(
+            submission_id,
+            submission.status,
+            status=target,
+            scheduled_at=scheduled_at,
         )
+        if not ok:
+            current = self._require(submission_id)
+            return ModerationResult(
+                submission=current, changed=False, already_handled=True
+            )
         updated = self._require(submission_id)
         await self.bus.publish(
             SubmissionApproved(
@@ -339,11 +356,17 @@ class ModerationService:
                 submission=submission, changed=False, already_handled=True
             )
         rules.ensure_transition(submission.status, SubmissionStatus.rejected)
-        self.db.update_submission(
+        ok = self.db.update_submission_cas(
             submission_id,
+            submission.status,
             status=SubmissionStatus.rejected,
             reject_reason=reason,
         )
+        if not ok:
+            current = self._require(submission_id)
+            return ModerationResult(
+                submission=current, changed=False, already_handled=True
+            )
         updated = self._require(submission_id)
         await self.bus.publish(
             SubmissionRejected(
@@ -367,11 +390,17 @@ class ModerationService:
                 submission=submission, changed=False, already_handled=True
             )
         rules.ensure_transition(submission.status, SubmissionStatus.scheduled)
-        self.db.update_submission(
+        ok = self.db.update_submission_cas(
             submission_id,
+            submission.status,
             status=SubmissionStatus.scheduled,
             scheduled_at=at,
         )
+        if not ok:
+            current = self._require(submission_id)
+            return ModerationResult(
+                submission=current, changed=False, already_handled=True
+            )
         updated = self._require(submission_id)
         await self.bus.publish(
             SubmissionScheduled(submission=updated, scheduled_at=at)
@@ -393,11 +422,22 @@ class ModerationService:
                 submission=submission, changed=False, already_handled=True
             )
         rules.ensure_transition(submission.status, SubmissionStatus.published)
-        self.db.update_submission(
+        ok = self.db.update_submission_cas(
             submission_id,
+            (SubmissionStatus.approved, SubmissionStatus.scheduled),
             status=SubmissionStatus.published,
             published_at=published_at or utcnow(),
         )
+        if not ok:
+            current = self._require(submission_id)
+            if current.status is SubmissionStatus.published:
+                return ModerationResult(
+                    submission=current, changed=False, already_handled=True
+                )
+            raise RuntimeError(
+                f"Не удалось отметить заявку {submission_id} опубликованной "
+                f"(статус {current.status.value})"
+            )
         updated = self._require(submission_id)
         await self.bus.publish(
             SubmissionPublished(
@@ -561,12 +601,15 @@ class GuildConfigService:
         *,
         propose_role_ids: list[str] | None = None,
         mod_role_ids: list[str] | None = None,
+        admin_role_ids: list[str] | None = None,
     ) -> GuildConfig:
         config = self.get_or_default(guild_id)
         if propose_role_ids is not None:
             config.propose_role_ids = [str(x) for x in propose_role_ids]
         if mod_role_ids is not None:
             config.mod_role_ids = [str(x) for x in mod_role_ids]
+        if admin_role_ids is not None:
+            config.admin_role_ids = [str(x) for x in admin_role_ids]
         return self.upsert(config)
 
     def set_rate_limit(

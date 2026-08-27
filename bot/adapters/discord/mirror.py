@@ -403,6 +403,16 @@ class ChannelMirrorService:
         )
 
 
+DISCORD_MIRROR_LIMIT = 2000
+TELEGRAM_MIRROR_CAPTION_LIMIT = 1024
+
+
+def _truncate_mirror(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rstrip() + "…"
+
+
 def format_discord_mirror_text(message: TgMessage) -> str:
     """TG → Discord body: source mark + text only (no cross-post URLs)."""
     body = (message.text or message.caption or "").strip()
@@ -418,7 +428,7 @@ def format_discord_mirror_text(message: TgMessage) -> str:
     parts = [DS_PREFIX]
     if body:
         parts.append(body)
-    return "\n".join(parts)
+    return _truncate_mirror("\n".join(parts), DISCORD_MIRROR_LIMIT)
 
 
 def format_telegram_mirror_text(content: str) -> str:
@@ -436,7 +446,7 @@ def format_telegram_mirror_text(content: str) -> str:
     parts = [TG_PREFIX]
     if body:
         parts.append(body)
-    return "\n".join(parts)
+    return _truncate_mirror("\n".join(parts), TELEGRAM_MIRROR_CAPTION_LIMIT)
 
 
 def _is_cross_post_link(line: str) -> bool:
@@ -458,6 +468,9 @@ def build_telegram_mirror_router(mirror: ChannelMirrorService) -> Router:
     async def on_edited_channel_post(message: TgMessage) -> None:
         await mirror.edit_telegram_mirror(message)
 
+    # Bot API does not deliver channel post deletions to bots in general.
+    # Manual cleanup: Discord twin can be removed via /repost workflows;
+    # DS→TG delete remains wired in MirrorCog.on_message_delete.
     return router
 
 

@@ -22,6 +22,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from bot.core.host_sync_auth import (
+    require_sync_secret,
+    sign_fields,
+    strip_auth_fields,
+    verify_signed_payload,
+)
+
 logger = logging.getLogger(__name__)
 
 SAFE_HOST_RE = re.compile(r"[^A-Za-z0-9._@+-]+")
@@ -198,11 +205,16 @@ class HostSyncStore:
         return self.root / "state.json"
 
     def write_registry(self, entry: HostRegistryEntry) -> None:
-        _atomic_write_json(self.registry_path(entry.host_id), entry.to_dict())
+        payload = sign_fields(entry.to_dict())
+        _atomic_write_json(self.registry_path(entry.host_id), payload)
 
     def read_registry(self, host_id: str) -> HostRegistryEntry | None:
         data = _read_json(self.registry_path(host_id))
-        return HostRegistryEntry.from_dict(data) if data else None
+        if not data:
+            return None
+        if not verify_signed_payload(data, check_replay=False):
+            return None
+        return HostRegistryEntry.from_dict(strip_auth_fields(data))
 
     def list_registry(self) -> list[HostRegistryEntry]:
         folder = self.root / "registry"
@@ -211,8 +223,8 @@ class HostSyncStore:
         out: list[HostRegistryEntry] = []
         for path in sorted(folder.glob("*.json")):
             data = _read_json(path)
-            if data:
-                out.append(HostRegistryEntry.from_dict(data))
+            if data and verify_signed_payload(data, check_replay=False):
+                out.append(HostRegistryEntry.from_dict(strip_auth_fields(data)))
         return out
 
     def write_state(self, payload: dict[str, Any]) -> None:
@@ -222,11 +234,18 @@ class HostSyncStore:
         return _read_json(self.state_path)
 
     def write_command(self, host_id: str, command: HostCommand) -> None:
-        _atomic_write_json(self.command_path(host_id), command.to_dict())
+        require_sync_secret()
+        payload = sign_fields(command.to_dict())
+        _atomic_write_json(self.command_path(host_id), payload)
 
     def read_command(self, host_id: str) -> HostCommand | None:
         data = _read_json(self.command_path(host_id))
-        return HostCommand.from_dict(data) if data else None
+        if not data:
+            return None
+        if not verify_signed_payload(data):
+            logger.warning("Rejected unsigned/invalid command for %s", host_id)
+            return None
+        return HostCommand.from_dict(strip_auth_fields(data))
 
     def clear_command(self, host_id: str) -> None:
         path = self.command_path(host_id)
@@ -236,11 +255,17 @@ class HostSyncStore:
             logger.warning("Не удалось удалить команду %s", path)
 
     def write_ack(self, host_id: str, ack: HostAck) -> None:
-        _atomic_write_json(self.ack_path(host_id), ack.to_dict())
+        payload = sign_fields(ack.to_dict())
+        _atomic_write_json(self.ack_path(host_id), payload)
 
     def read_ack(self, host_id: str) -> HostAck | None:
         data = _read_json(self.ack_path(host_id))
-        return HostAck.from_dict(data) if data else None
+        if not data:
+            return None
+        if not verify_signed_payload(data):
+            logger.warning("Rejected unsigned/invalid ack from %s", host_id)
+            return None
+        return HostAck.from_dict(strip_auth_fields(data))
 
     def clear_ack(self, host_id: str) -> None:
         path = self.ack_path(host_id)

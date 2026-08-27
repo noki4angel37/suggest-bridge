@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from bot.core.db_schema import SCHEMA
 from bot.core.models import (
     Admin,
     BlacklistEntry,
@@ -31,147 +32,6 @@ from bot.core.models import (
 )
 
 DEFAULT_BRIDGE_DB_PATH = "./data/bridge.db"
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS submissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'draft',
-    author_platform_user_id TEXT NOT NULL,
-    author_display_name TEXT NOT NULL,
-    author_username TEXT,
-    author_discord_profile_url TEXT,
-    want_anonymous INTEGER,
-    text TEXT,
-    is_admin_post INTEGER NOT NULL DEFAULT 0,
-    guild_id TEXT,
-    source_chat_id TEXT,
-    source_message_id TEXT,
-    scheduled_at TEXT,
-    published_at TEXT,
-    reject_reason TEXT,
-    publish_target TEXT NOT NULL DEFAULT 'both',
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);
-CREATE INDEX IF NOT EXISTS idx_submissions_author
-    ON submissions(source, author_platform_user_id);
-
-CREATE TABLE IF NOT EXISTS submission_media (
-    submission_id INTEGER NOT NULL,
-    order_index INTEGER NOT NULL DEFAULT 0,
-    content_type TEXT NOT NULL,
-    file_ref TEXT,
-    ref_kind TEXT,
-    caption TEXT,
-    PRIMARY KEY (submission_id, order_index),
-    FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS moderation_refs (
-    submission_id INTEGER NOT NULL,
-    platform TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    message_id TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    PRIMARY KEY (submission_id, platform, target_id),
-    FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS admins (
-    platform TEXT NOT NULL,
-    platform_user_id TEXT NOT NULL,
-    added_by TEXT,
-    created_at TEXT NOT NULL,
-    PRIMARY KEY (platform, platform_user_id)
-);
-
-CREATE TABLE IF NOT EXISTS guild_configs (
-    guild_id TEXT PRIMARY KEY,
-    suggest_channel_id TEXT,
-    mod_channel_id TEXT,
-    publish_channel_id TEXT,
-    propose_role_ids TEXT NOT NULL DEFAULT '[]',
-    mod_role_ids TEXT NOT NULL DEFAULT '[]',
-    rate_limit_enabled INTEGER NOT NULL DEFAULT 0,
-    rate_limit_count INTEGER,
-    rate_limit_window_sec INTEGER,
-    updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS mirror_links (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    origin TEXT NOT NULL,
-    kind TEXT NOT NULL,
-    tg_chat_id TEXT,
-    tg_message_id TEXT,
-    ds_guild_id TEXT,
-    ds_channel_id TEXT,
-    ds_message_id TEXT,
-    submission_id INTEGER,
-    created_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_mirror_tg
-    ON mirror_links(tg_chat_id, tg_message_id);
-CREATE INDEX IF NOT EXISTS idx_mirror_ds
-    ON mirror_links(ds_channel_id, ds_message_id);
-
-CREATE TABLE IF NOT EXISTS blacklist (
-    platform TEXT NOT NULL,
-    platform_user_id TEXT NOT NULL,
-    reason TEXT,
-    created_at TEXT NOT NULL,
-    PRIMARY KEY (platform, platform_user_id)
-);
-
-CREATE TABLE IF NOT EXISTS antiflood_hits (
-    platform TEXT NOT NULL,
-    platform_user_id TEXT NOT NULL,
-    window_start REAL NOT NULL,
-    count INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (platform, platform_user_id)
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
-
-CREATE TABLE IF NOT EXISTS pass_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    guild_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    display_name TEXT NOT NULL,
-    username TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    decided_at TEXT,
-    decided_by TEXT,
-    expires_at TEXT,
-    cooldown_until TEXT,
-    mod_channel_id TEXT,
-    mod_message_id TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_pass_requests_user_status
-    ON pass_requests(guild_id, user_id, status);
-CREATE INDEX IF NOT EXISTS idx_pass_requests_status
-    ON pass_requests(status);
-
-CREATE TABLE IF NOT EXISTS pass_antiflood (
-    guild_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    window_start REAL NOT NULL,
-    count INTEGER NOT NULL DEFAULT 0,
-    last_hit REAL NOT NULL DEFAULT 0,
-    strike_until REAL,
-    PRIMARY KEY (guild_id, user_id)
-);
-"""
 
 _SUBMISSION_UPDATABLE = (
     "status",
@@ -241,7 +101,7 @@ class BridgeDatabase:
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
@@ -268,6 +128,11 @@ class BridgeDatabase:
                 ("submission_media", "ref_kind", "TEXT"),
                 ("guild_configs", "rate_limit_window_sec", "INTEGER"),
                 ("guild_configs", "publish_channel_id", "TEXT"),
+                (
+                    "guild_configs",
+                    "admin_role_ids",
+                    "TEXT NOT NULL DEFAULT '[]'",
+                ),
             ):
                 try:
                     conn.execute(
@@ -363,7 +228,7 @@ class BridgeDatabase:
     def update_submission(self, submission_id: int, **fields: object) -> None:
         unknown = set(fields) - set(_SUBMISSION_UPDATABLE)
         if unknown:
-            raise ValueError(f"РќРµРёР·РІРµСЃС‚РЅС‹Рµ РїРѕР»СЏ Р·Р°СЏРІРєРё: {sorted(unknown)}")
+            raise ValueError(f"Неизвестные поля заявки: {sorted(unknown)}")
         if not fields:
             return
 
@@ -390,6 +255,49 @@ class BridgeDatabase:
                 f"UPDATE submissions SET {', '.join(assignments)} WHERE id = ?",
                 values,
             )
+
+    def update_submission_cas(
+        self,
+        submission_id: int,
+        expected_status: SubmissionStatus | tuple[SubmissionStatus, ...],
+        **fields: object,
+    ) -> bool:
+        """Atomic status-guarded update; returns True if exactly one row changed."""
+        unknown = set(fields) - set(_SUBMISSION_UPDATABLE)
+        if unknown:
+            raise ValueError(f"Неизвестные поля заявки: {sorted(unknown)}")
+        if not fields:
+            return False
+        if isinstance(expected_status, SubmissionStatus):
+            expected = (expected_status,)
+        else:
+            expected = expected_status
+        status_values = [s.value for s in expected]
+        values: list[object] = []
+        assignments: list[str] = []
+        for key, value in fields.items():
+            assignments.append(f"{key} = ?")
+            if isinstance(value, SubmissionStatus):
+                values.append(value.value)
+            elif isinstance(value, PublishTarget):
+                values.append(value.value)
+            elif isinstance(value, datetime):
+                values.append(_to_iso(value))
+            elif isinstance(value, bool):
+                values.append(int(value))
+            else:
+                values.append(value)
+        assignments.append("updated_at = ?")
+        values.append(_to_iso(utcnow()))
+        placeholders = ", ".join("?" for _ in status_values)
+        values.extend([submission_id, *status_values])
+        with self._tx() as conn:
+            cur = conn.execute(
+                f"UPDATE submissions SET {', '.join(assignments)} "
+                f"WHERE id = ? AND status IN ({placeholders})",
+                values,
+            )
+            return cur.rowcount == 1
 
     def delete_submission(self, submission_id: int) -> bool:
         """Hard-delete a submission and cascaded media/moderation refs."""
@@ -677,6 +585,9 @@ class BridgeDatabase:
             ),
             propose_role_ids=_load_id_list(row["propose_role_ids"]),
             mod_role_ids=_load_id_list(row["mod_role_ids"]),
+            admin_role_ids=_load_id_list(
+                row["admin_role_ids"] if "admin_role_ids" in row.keys() else None
+            ),
             rate_limit_enabled=bool(row["rate_limit_enabled"]),
             rate_limit_count=row["rate_limit_count"],
             rate_limit_window_sec=row["rate_limit_window_sec"],
@@ -689,15 +600,17 @@ class BridgeDatabase:
                 INSERT INTO guild_configs (
                     guild_id, suggest_channel_id, mod_channel_id,
                     publish_channel_id, propose_role_ids, mod_role_ids,
+                    admin_role_ids,
                     rate_limit_enabled, rate_limit_count, rate_limit_window_sec,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(guild_id) DO UPDATE SET
                     suggest_channel_id = excluded.suggest_channel_id,
                     mod_channel_id = excluded.mod_channel_id,
                     publish_channel_id = excluded.publish_channel_id,
                     propose_role_ids = excluded.propose_role_ids,
                     mod_role_ids = excluded.mod_role_ids,
+                    admin_role_ids = excluded.admin_role_ids,
                     rate_limit_enabled = excluded.rate_limit_enabled,
                     rate_limit_count = excluded.rate_limit_count,
                     rate_limit_window_sec = excluded.rate_limit_window_sec,
@@ -710,6 +623,7 @@ class BridgeDatabase:
                     config.publish_channel_id,
                     json.dumps([str(x) for x in config.propose_role_ids]),
                     json.dumps([str(x) for x in config.mod_role_ids]),
+                    json.dumps([str(x) for x in config.admin_role_ids]),
                     int(config.rate_limit_enabled),
                     config.rate_limit_count,
                     config.rate_limit_window_sec,
@@ -737,6 +651,11 @@ class BridgeDatabase:
                 ),
                 propose_role_ids=_load_id_list(row["propose_role_ids"]),
                 mod_role_ids=_load_id_list(row["mod_role_ids"]),
+                admin_role_ids=_load_id_list(
+                    row["admin_role_ids"]
+                    if "admin_role_ids" in row.keys()
+                    else None
+                ),
                 rate_limit_enabled=bool(row["rate_limit_enabled"]),
                 rate_limit_count=row["rate_limit_count"],
                 rate_limit_window_sec=row["rate_limit_window_sec"],
@@ -787,6 +706,33 @@ class BridgeDatabase:
         assert stored is not None
         return stored
 
+    def update_mirror_discord_side(
+        self,
+        tg_chat_id: str,
+        tg_message_id: str,
+        *,
+        ds_guild_id: str | None,
+        ds_channel_id: str,
+        ds_message_id: str,
+    ) -> None:
+        with self._tx() as conn:
+            conn.execute(
+                """
+                UPDATE mirror_links
+                SET ds_guild_id = ?, ds_channel_id = ?, ds_message_id = ?
+                WHERE tg_chat_id = ? AND tg_message_id = ?
+                  AND kind = ?
+                """,
+                (
+                    ds_guild_id,
+                    ds_channel_id,
+                    ds_message_id,
+                    tg_chat_id,
+                    tg_message_id,
+                    MirrorKind.suggest_publish.value,
+                ),
+            )
+
     def get_mirror_link(self, link_id: int) -> MirrorLink | None:
         with self._tx() as conn:
             row = conn.execute(
@@ -807,6 +753,22 @@ class BridgeDatabase:
                 (str(tg_chat_id), str(tg_message_id)),
             ).fetchone()
         return self._row_to_mirror_link(row) if row else None
+
+    def delete_mirror_by_tg(self, tg_chat_id: str, tg_message_id: str) -> bool:
+        with self._tx() as conn:
+            cur = conn.execute(
+                """
+                DELETE FROM mirror_links
+                WHERE tg_chat_id = ? AND tg_message_id = ?
+                  AND kind = ?
+                """,
+                (
+                    str(tg_chat_id),
+                    str(tg_message_id),
+                    MirrorKind.suggest_publish.value,
+                ),
+            )
+            return cur.rowcount > 0
 
     def find_mirror_by_ds(
         self, ds_channel_id: str, ds_message_id: str
@@ -835,7 +797,7 @@ class BridgeDatabase:
         }
         unknown = set(fields) - allowed
         if unknown:
-            raise ValueError(f"РќРµРёР·РІРµСЃС‚РЅС‹Рµ РїРѕР»СЏ mirror_links: {sorted(unknown)}")
+            raise ValueError(f"Неизвестные поля mirror_links: {sorted(unknown)}")
         if not fields:
             return
         values: list[object] = []
@@ -1094,7 +1056,7 @@ class BridgeDatabase:
                 """
                 SELECT * FROM pass_requests
                 WHERE guild_id = ? AND user_id = ? AND status = ?
-                  AND expires_at IS NOT NULL AND expires_at > ?
+                  AND (expires_at IS NULL OR expires_at > ?)
                 ORDER BY id DESC LIMIT 1
                 """,
                 (
@@ -1143,17 +1105,41 @@ class BridgeDatabase:
             rows = conn.execute(query, params).fetchall()
         return [self._row_to_pass_request(row) for row in rows]
 
-    def list_due_pass_grants(self, *, now: datetime) -> list[PassRequest]:
+    def list_approved_pass_grants(self) -> list[PassRequest]:
+        """Approved grants with an expiry, oldest deadline first. No row cap."""
         with self._tx() as conn:
             rows = conn.execute(
                 """
                 SELECT * FROM pass_requests
-                WHERE status = ? AND expires_at IS NOT NULL AND expires_at <= ?
-                ORDER BY id ASC
+                WHERE status = ? AND expires_at IS NOT NULL
+                ORDER BY expires_at ASC
                 """,
-                (PassRequestStatus.approved.value, _to_iso(now)),
+                (PassRequestStatus.approved.value,),
             ).fetchall()
         return [self._row_to_pass_request(row) for row in rows]
+
+    def list_due_pass_grants(self, *, now: datetime) -> list[PassRequest]:
+        """Approved grants whose ``expires_at`` is due. Compared in Python.
+
+        SQLite TEXT compare of ISO stamps is brittle across ``Z`` / ``+00:00``.
+        Unlimited grants (``expires_at`` NULL) are never due.
+        """
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        else:
+            now = now.astimezone(timezone.utc)
+        due: list[PassRequest] = []
+        for request in self.list_approved_pass_grants():
+            expires = request.expires_at
+            if expires is None:
+                continue
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            else:
+                expires = expires.astimezone(timezone.utc)
+            if expires <= now:
+                due.append(request)
+        return due
 
     def update_pass_request(self, request: PassRequest) -> PassRequest:
         if request.id is None:

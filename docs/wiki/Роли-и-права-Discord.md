@@ -11,9 +11,15 @@
 | Участник (+ роль предложки, если задана) | да | нет | нет |
 | Модератор канала / роль модерации | — | да | нет |
 | Админ бота (`OWNER_DISCORD_ID` / `admin_add`) | — | да | да |
-| Guild admin (Manage Guild) | setup/decorate | по ролям | **не** автоматически admin бота |
+| Носитель админ-роли (`/admin_roles`) | — | да | да (на этом сервере; в ЛС — нет) |
+| Владелец сервера | setup_pass / pass_config / admin_roles | по ролям | через `/admin_roles` или как админ бота |
+| Guild admin (Manage Guild) | setup_suggest / decorate | по ролям | **не** автоматически admin бота |
 
-**Админ бота** и **модератор сервера** — разные вещи. Guild admin может вызвать `/setup_suggest`, но не получает `/host`, block и прочие админ-команды бота, пока его не добавят через `/admin_add`.
+**Админ бота** и **модератор сервера** — разные вещи. Manage Guild даёт `/setup_suggest`, но не `/host` / block, пока пользователя не добавят через `/admin_add` или роль через `/admin_roles`.
+
+### Админ-роли сервера
+
+Владелец гильдии вызывает `/admin_roles` и выбирает одну или несколько существующих Discord-ролей. Носители этих ролей получают **все** админ-команды бота на этом сервере (`/host`, `/block_user`, `/admin_add`, `/setup_pass`, …). Список user-id админов (`/admin_add`) сохраняется. В личных сообщениях Discord учитывается только таблица админов (без ролей гильдии).
 
 ### Роль «недоадмин»
 
@@ -29,7 +35,7 @@ Scopes: `bot` + `applications.commands`. **Не** включайте Administrat
 | Add Reactions | 64 | карточки / UX |
 | View Channel | 1024 | чтение каналов |
 | Send Messages | 2048 | публикация и ответы |
-| **Manage Messages** | 8192 | удаление заявок из канала после ingest |
+| **Manage Messages** | 8192 | удаление заявок из канала после ingest; страж режима «видно» у [[Проходка]] |
 | Embed Links | 16384 | эмбеды карточек |
 | Attach Files | 32768 | медиа |
 | Read Message History | 65536 | история |
@@ -43,13 +49,15 @@ Scopes: `bot` + `applications.commands`. **Не** включайте Administrat
 |---------|-----------|------------|
 | `/setup_suggest` | manage_guild + may_setup | Каналы заявок / модерации / публикации и роли |
 | `/setup_info` | manage_guild + may_setup | Текущие настройки |
-| `/setup_pass` | manage_guild + may_setup | Роль проходки и закрытые каналы ([[Проходка]]) |
+| `/setup_pass` | админ бота / админ-роль / владелец сервера | Роль проходки; скрыть или видно; текст/голос ([[Проходка]]) |
+| `/pass_config` | те же, что `/setup_pass` | Срок проходки на сервере |
 | `/decorate_server` | manage_guild + may_setup | Категории, emoji┃имена, ACL ленты |
 | `/roles_propose` | manage_guild | Кто может отправлять заявки (пусто = все) |
 | `/roles_mod` | manage_guild | Роли модерации карточек |
 | `/ratelimit_config` | manage_guild | Per-guild антифлуд |
-| `/host` | **только админы бота** | Панель primary / передача lease |
-| `/admin_add`, `/block_user`, `/queue`, … | **только админы бота** | Операторские команды |
+| `/admin_roles` | **только владелец сервера** | Выбрать Discord-роли как админов бота |
+| `/host` | админы бота или админ-роли гильдии | Панель primary / передача lease |
+| `/admin_add`, `/block_user`, `/queue`, … | админы бота или админ-роли гильдии | Операторские команды |
 
 На `/decorate_server` owner и **invoker** получают break-glass overwrite — вызывать setup должен доверенный человек.
 
@@ -67,6 +75,6 @@ Scopes: `bot` + `applications.commands`. **Не** включайте Administrat
 |------|------|
 | ПК с `.env` + токены | Полный контроль бота |
 | Модератор Discord (не admin бота) | Модерация заявок; **не** `/host` |
-| Админ бота | Админ-команды, block, host |
+| Админ бота / админ-роль | Админ-команды, block, host |
 
 Подробнее: [[Безопасность]].

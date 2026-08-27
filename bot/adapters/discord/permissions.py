@@ -62,6 +62,18 @@ def can_moderate(
     return has_any_role(role_ids, mod_role_ids)
 
 
+def can_bot_admin(
+    role_ids: Iterable[Any] | None,
+    admin_role_ids: Iterable[Any] | None,
+    *,
+    is_platform_admin: bool = False,
+) -> bool:
+    """Table admins or holders of guild `admin_role_ids`."""
+    if is_platform_admin:
+        return True
+    return has_any_role(role_ids, admin_role_ids)
+
+
 def can_setup(
     *, is_platform_admin: bool = False, is_guild_admin: bool = False
 ) -> bool:
@@ -110,4 +122,18 @@ def member_can_moderate(
         config.mod_role_ids if config else (),
         is_platform_admin=is_platform_admin,
         is_guild_admin=is_guild_admin(member),
+    )
+
+
+def member_is_bot_admin(
+    member: Any,
+    config: GuildConfig | None,
+    *,
+    is_platform_admin: bool = False,
+) -> bool:
+    """Guild-scoped bot-admin check: table admin or `admin_role_ids`."""
+    return can_bot_admin(
+        member_role_ids(member),
+        config.admin_role_ids if config else (),
+        is_platform_admin=is_platform_admin,
     )

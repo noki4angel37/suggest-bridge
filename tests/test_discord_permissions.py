@@ -59,6 +59,14 @@ def test_can_moderate_requires_role_or_admin() -> None:
     assert permissions.can_moderate([], [], is_guild_admin=True) is True
 
 
+def test_can_bot_admin_table_or_guild_roles() -> None:
+    assert permissions.can_bot_admin([], []) is False
+    assert permissions.can_bot_admin(["30"], ["30"]) is True
+    assert permissions.can_bot_admin(["31"], ["30"]) is False
+    assert permissions.can_bot_admin([], ["30"], is_platform_admin=True) is True
+    assert permissions.can_bot_admin(["30", "31"], ["31", "40"]) is True
+
+
 def test_can_setup_only_for_admins() -> None:
     assert permissions.can_setup() is False
     assert permissions.can_setup(is_guild_admin=True) is True
@@ -110,4 +118,34 @@ def test_member_can_moderate_uses_guild_config_and_admins() -> None:
             FakeMember(guild_permissions=FakePerms(manage_guild=True)), None
         )
         is True
+    )
+
+
+def test_member_is_bot_admin_uses_admin_role_ids() -> None:
+    member = FakeMember(id=5, roles=[FakeRole(30)])
+    assert (
+        permissions.member_is_bot_admin(
+            member, config(admin_role_ids=["30"])
+        )
+        is True
+    )
+    assert (
+        permissions.member_is_bot_admin(
+            member, config(admin_role_ids=["99"])
+        )
+        is False
+    )
+    assert permissions.member_is_bot_admin(member, None) is False
+    assert (
+        permissions.member_is_bot_admin(
+            member, None, is_platform_admin=True
+        )
+        is True
+    )
+    # Empty allowlist: only table admins.
+    assert (
+        permissions.member_is_bot_admin(
+            member, config(admin_role_ids=[])
+        )
+        is False
     )

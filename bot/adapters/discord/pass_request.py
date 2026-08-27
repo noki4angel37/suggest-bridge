@@ -17,7 +17,7 @@ from bot.adapters.discord.moderation import (
     resolve_channel,
 )
 from bot.core.models import PassRequest, PassRequestStatus, utcnow
-from bot.core.pass_service import PassService, format_remaining
+from bot.core.pass_service import PassService, format_pass_duration
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,10 @@ STATUS_LABELS = {
 }
 
 
-def _hours_label(duration_sec: int) -> str:
-    return format_remaining(duration_sec)
+def _duration_ask_phrase(duration_sec: int) -> str:
+    if duration_sec == 0:
+        return "без ограничения"
+    return f"на {format_pass_duration(duration_sec)}"
 
 
 def build_pass_embed(
@@ -46,7 +48,7 @@ def build_pass_embed(
     embed = discord.Embed(
         title=f"Заявка на {label}",
         description=(
-            f"{user_line} просит **{label}** на {_hours_label(duration_sec)}."
+            f"{user_line} просит **{label}** {_duration_ask_phrase(duration_sec)}."
         ),
         color=PASS_COLORS.get(request.status, 0x99AAB5),
     )
@@ -90,6 +92,7 @@ class PassCog(commands.Cog, name="pass"):
         self.ctx = ctx
         self.passes = passes
         self._expiry_task: asyncio.Task[None] | None = None
+        self._expiry_wakeup = asyncio.Event()
 
     async def cog_load(self) -> None:
         restored = 0
@@ -114,6 +117,10 @@ class PassCog(commands.Cog, name="pass"):
             extras["ru"] = ru_name
         self._expiry_task = asyncio.create_task(
             self._expiry_loop(), name="pass-expiry"
+        )
+        logger.info(
+            "Pass expiry loop started (idle poll %.0fs)",
+            self.passes.config.expiry_poll_sec,
         )
 
     async def cog_unload(self) -> None:
@@ -224,11 +231,19 @@ class PassCog(commands.Cog, name="pass"):
             )
             return
         await self.refresh_card(decided.request)
-        await self.notify_user(
-            decided.request,
-            f"Заявка принята: «{self.passes.config.label}» на "
-            f"{_hours_label(self.passes.config.duration_sec)}.",
-        )
+        self.wake_expiry_loop()
+        duration_sec = self.passes.duration_sec_for(decided.request.guild_id)
+        if duration_sec == 0:
+            notify = (
+                f"Заявка принята: «{self.passes.config.label}» "
+                "без ограничения."
+            )
+        else:
+            notify = (
+                f"Заявка принята: «{self.passes.config.label}» на "
+                f"{format_pass_duration(duration_sec)}."
+            )
+        await self.notify_user(decided.request, notify)
         await keyboards.respond(interaction, decided.message)
 
     async def handle_reject(
@@ -255,7 +270,7 @@ class PassCog(commands.Cog, name="pass"):
             await self.notify_user(
                 decided.request,
                 "Заявка на проходку отклонена. "
-                f"Повторно через {_hours_label(self.passes.config.reject_cooldown_sec)}.",
+                f"Повторно через {format_pass_duration(self.passes.config.reject_cooldown_sec)}.",
             )
         await keyboards.respond(interaction, decided.message)
 
@@ -281,7 +296,7 @@ class PassCog(commands.Cog, name="pass"):
                 role,
                 reason=(
                     f"pass #{request.id} for "
-                    f"{_hours_label(self.passes.config.duration_sec)}"
+                    f"{format_pass_duration(self.passes.duration_sec_for(request.guild_id))}"
                 ),
             )
         except (discord.Forbidden, discord.HTTPException):
@@ -298,10 +313,25 @@ class PassCog(commands.Cog, name="pass"):
             return True
         guild = self.bot.get_guild(int(request.guild_id))
         if guild is None:
-            return True
+            logger.warning(
+                "Pass %s: guild %s unavailable, revoke deferred",
+                request.id,
+                request.guild_id,
+            )
+            return False
         role = guild.get_role(int(role_id))
+        if role is None:
+            logger.warning("Pass role %s not found, revoke deferred", role_id)
+            return False
         member = await self._fetch_member(guild, request.user_id)
-        if member is None or role is None or role not in member.roles:
+        if member is None:
+            logger.info(
+                "Member %s left — pass #%s has nothing to revoke",
+                request.user_id,
+                request.id,
+            )
+            return True
+        if role not in member.roles:
             return True
         try:
             await member.remove_roles(
@@ -312,6 +342,7 @@ class PassCog(commands.Cog, name="pass"):
                 "Could not revoke pass role from %s", request.user_id
             )
             return False
+        logger.info("Revoked pass #%s from user %s", request.id, request.user_id)
         return True
 
     async def _fetch_member(
@@ -339,7 +370,7 @@ class PassCog(commands.Cog, name="pass"):
         embed = build_pass_embed(
             request,
             label=self.passes.config.label,
-            duration_sec=self.passes.config.duration_sec,
+            duration_sec=self.passes.duration_sec_for(request.guild_id),
         )
         view = self.build_view(request)
         try:
@@ -370,7 +401,7 @@ class PassCog(commands.Cog, name="pass"):
                 embed=build_pass_embed(
                     request,
                     label=self.passes.config.label,
-                    duration_sec=self.passes.config.duration_sec,
+                    duration_sec=self.passes.duration_sec_for(request.guild_id),
                 ),
                 view=self.build_view(request),
             )
@@ -421,9 +452,12 @@ class PassCog(commands.Cog, name="pass"):
                 return text_channel
         return None
 
+    def wake_expiry_loop(self) -> None:
+        """Recalculate the next expiry sleep (new grant or failed revoke)."""
+        self._expiry_wakeup.set()
+
     async def _expiry_loop(self) -> None:
         await self.bot.wait_until_ready()
-        interval = self.passes.config.expiry_poll_sec
         while True:
             try:
                 await self.sync_grants()
@@ -431,7 +465,12 @@ class PassCog(commands.Cog, name="pass"):
                 raise
             except Exception:  # noqa: BLE001
                 logger.exception("Pass expiry loop failed")
-            await asyncio.sleep(interval)
+            delay = self.passes.next_sleep_sec()
+            self._expiry_wakeup.clear()
+            try:
+                await asyncio.wait_for(self._expiry_wakeup.wait(), timeout=delay)
+            except (asyncio.TimeoutError, TimeoutError):
+                pass
 
     async def sync_grants(self) -> None:
         now = utcnow()
@@ -448,7 +487,16 @@ class PassCog(commands.Cog, name="pass"):
                     expired,
                     f"Срок «{self.passes.config.label}» истёк.",
                 )
+                from bot.adapters.action_log import log_bot_action
+
+                log_bot_action(
+                    f"Проходка истекла: user {expired.user_id} "
+                    f"«{self.passes.config.label}»",
+                    action="pass.expire",
+                    actor="bot",
+                    submission_id=expired.id,
+                )
         for request in self.passes.list_approved():
-            if request.expires_at is None or request.expires_at <= now:
+            if request.expires_at is not None and request.expires_at <= now:
                 continue
             await self.grant_role(request)

@@ -38,6 +38,7 @@ def test_suggest_vs_publish_names() -> None:
     assert is_publish_channel_name("📨┃предложка")
     assert is_publish_channel_name("предложка")
     assert is_publish_channel_name("📦┃посты-опубликованно")
+    assert is_publish_channel_name("📦┃посты-опубликовано")
     assert is_mod_channel_name("🛡️┃модерация-предложки")
 
 
@@ -49,8 +50,9 @@ def test_decorated_name_and_spec() -> None:
     assert spec.readonly is True
     legacy = spec_for_channel_name("посты-опубликованно")
     assert legacy is not None
-    assert legacy.slug == "посты-опубликованно"
-    assert legacy.readonly is False
+    assert legacy.slug == "посты-опубликовано"
+    assert legacy.readonly is True
+    assert spec_for_channel_name("посты-опубликовано") is legacy
 
 
 def test_publish_overwrites_deny_everyone_send() -> None:
@@ -72,6 +74,8 @@ def test_publish_overwrites_deny_everyone_send() -> None:
     overwrites = publish_channel_overwrites(guild, editor)  # type: ignore[arg-type]
     assert overwrites[everyone].send_messages is False
     assert overwrites[everyone].attach_files is False
+    assert overwrites[everyone].create_public_threads is False
+    assert overwrites[everyone].send_messages_in_threads is False
     assert overwrites[editor].send_messages is True
     assert overwrites[editor].manage_messages is True
     assert overwrites[me].send_messages is True

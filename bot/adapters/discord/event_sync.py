@@ -87,6 +87,12 @@ class DiscordEventSync:
     async def on_approved(self, event: SubmissionApproved) -> None:
         submission = event.submission
         await self.reflect(submission)
+        await self.post_decision_log(
+            submission,
+            action="approved",
+            moderator_id=event.moderator_id,
+            moderator_platform=event.moderator_platform,
+        )
         # A scheduled approval is announced by the scheduled event instead.
         if submission.status is SubmissionStatus.scheduled:
             return
@@ -97,6 +103,13 @@ class DiscordEventSync:
     async def on_rejected(self, event: SubmissionRejected) -> None:
         submission = event.submission
         await self.reflect(submission)
+        await self.post_decision_log(
+            submission,
+            action="rejected",
+            reason=event.reason or submission.reject_reason,
+            moderator_id=event.moderator_id,
+            moderator_platform=event.moderator_platform,
+        )
         await self.notify_author(
             submission,
             texts.notify_rejected(
@@ -138,6 +151,47 @@ class DiscordEventSync:
             self.bot, self.ctx, submission
         )
         await moderation.set_status_reaction(self.bot, submission)
+
+    async def post_decision_log(
+        self,
+        submission: Submission,
+        *,
+        action: str,
+        reason: str | None = None,
+        moderator_id: str | None = None,
+        moderator_platform: object | None = None,
+    ) -> None:
+        """Optional audit message in DISCORD_MOD_LOG_CHANNEL_ID."""
+        from bot.core.rules import display_sid
+        from bot.settings import discord_mod_log_channel_id
+
+        channel_id = discord_mod_log_channel_id()
+        if not channel_id:
+            return
+        await self.bot.wait_until_ready()
+        channel = self.bot.get_channel(int(channel_id))
+        if channel is None:
+            try:
+                channel = await self.bot.fetch_channel(int(channel_id))
+            except (discord.HTTPException, discord.NotFound):
+                logger.warning("mod log channel %s unavailable", channel_id)
+                return
+        if not isinstance(channel, discord.abc.Messageable):
+            return
+        sid = display_sid(submission.id)
+        plat = getattr(moderator_platform, "value", moderator_platform) or "?"
+        mod = f"{plat}:{moderator_id}" if moderator_id else "—"
+        bits = [
+            f"**{action}** {sid} (#{submission.id})",
+            f"moderator: {mod}",
+            f"author: {submission.author_display_name}",
+        ]
+        if reason:
+            bits.append(f"reason: {reason[:300]}")
+        try:
+            await channel.send("\n".join(bits))
+        except discord.HTTPException:
+            logger.exception("failed to post mod log for %s", sid)
 
     async def notify_author(
         self, submission: Submission, message: str

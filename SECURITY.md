@@ -11,7 +11,7 @@
 Please **do not** open public GitHub issues for security problems.
 
 1. Open a [GitHub Security Advisory](https://github.com/noki4angel37/suggest-bridge/security/advisories/new) (preferred), or
-2. Email the maintainers if you cannot use GitHub (add your contact in the repo settings).
+2. Email via [GitHub Security Advisory](https://github.com/noki4angel37/suggest-bridge/security/advisories/new) private report.
 
 We aim to respond within 7 days.
 
@@ -23,4 +23,10 @@ We aim to respond within 7 days.
 
 ## Permissions
 
-The Discord bot requests elevated permissions to delete user submissions from public channels and manage moderation cards. Review the invite URL and grant only what you need.
+Use OAuth2 permissions integer **268561488** (includes Manage Messages and Manage Roles for `/setup_suggest`). Do **not** grant Administrator. Bit breakdown: project wiki → Discord.
+
+## Operator defaults
+
+- Do not expose `HEALTH_PORT` (binds `0.0.0.0`) to the public internet without need; prefer `127.0.0.1` publish or leave unset.
+- Syncthing peers with write on `HOST_SYNC_DIR` are high trust; HMAC does not replace device trust. Rotate `HOST_SYNC_SECRET` on all PCs if a peer is compromised.
+- Full operator security notes: [wiki Безопасность](https://github.com/noki4angel37/suggest-bridge/wiki/Безопасность).

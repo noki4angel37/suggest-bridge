@@ -179,8 +179,10 @@ def describe_media(media: Sequence[MediaItem]) -> str:
 
 
 def card_title(submission: Submission) -> str:
+    from bot.core.rules import display_sid
+
     emoji = STATUS_EMOJI.get(submission.status, "•")
-    return f"{emoji} Заявка №{submission.id}"
+    return f"{emoji} Заявка {display_sid(submission.id)}"
 
 
 def author_block(submission: Submission) -> str:
@@ -263,6 +265,10 @@ def moderator_reply(text: str) -> str:
 # --- guild setup (names from env via bot.settings) -----------------------------
 
 SETUP_NO_RIGHTS = "Настройка доступна администраторам сервера."
+PASS_SETUP_NO_RIGHTS = (
+    "Нужны права админа бота, админ-роли сервера (/admin_roles) "
+    "или быть владельцем сервера."
+)
 SETUP_FORBIDDEN = (
     "Не хватает прав: боту нужно «Управление каналами» "
     "и доступ к каналам предложки."

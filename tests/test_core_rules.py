@@ -17,6 +17,32 @@ def make_submission(**kwargs: object) -> Submission:
     return Submission(**defaults)  # type: ignore[arg-type]
 
 
+def test_display_sid() -> None:
+    assert rules.display_sid(42) == "s42"
+    assert rules.display_sid(None) == "s?"
+
+
+def test_keyword_blocklist_match() -> None:
+    words = rules.parse_keyword_blocklist("Спам, foo")
+    assert rules.text_blocked_by_keywords("это Спам текст", words) == "спам"
+    assert rules.text_blocked_by_keywords("чисто", words) is None
+    assert rules.parse_keyword_blocklist("") == ()
+    assert rules.parse_keyword_blocklist(None) == ()
+
+
+def test_submission_filter_text_includes_captions() -> None:
+    from bot.core.models import ContentType, MediaItem
+
+    sub = make_submission(text="тело", media=[
+        MediaItem(content_type=ContentType.photo, caption="реклама тут"),
+    ])
+    hay = rules.submission_filter_text(sub)
+    assert "тело" in hay
+    assert "реклама" in hay
+    words = rules.parse_keyword_blocklist("реклама")
+    assert rules.text_blocked_by_keywords(hay, words) == "реклама"
+
+
 def test_validate_text_trims_and_allows_limit() -> None:
     assert rules.validate_text("  привет  ") == "привет"
     assert len(rules.validate_text("я" * rules.TEXT_LIMIT)) == rules.TEXT_LIMIT

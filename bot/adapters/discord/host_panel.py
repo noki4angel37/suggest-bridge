@@ -42,7 +42,7 @@ KEY_HOST_PANEL = "discord_host_panel_msg"  # guild_id:channel_id:message_id
 
 
 def _may_use_host(interaction: discord.Interaction, services: Any) -> bool:
-    """Bot Discord admins, owner, or guild moderators (@недоадмин / Manage Server)."""
+    """Bot Discord admins, owner, guild admin roles, or guild moderators."""
     uid = str(interaction.user.id)
     resolved = resolve_admin_services(services)
     if is_owner_discord(uid) or resolved.admins.is_admin(Platform.discord, uid):
@@ -50,9 +50,12 @@ def _may_use_host(interaction: discord.Interaction, services: Any) -> bool:
     bot = interaction.client
     ctx = getattr(bot, "ctx", None)
     if isinstance(ctx, DiscordContext) and interaction.guild_id is not None:
+        config = ctx.guild_config(interaction.guild_id)
+        if permissions.member_is_bot_admin(interaction.user, config):
+            return True
         return permissions.member_can_moderate(
             interaction.user,
-            ctx.guild_config(interaction.guild_id),
+            config,
             is_platform_admin=ctx.is_platform_admin(interaction.user.id),
         )
     return False
@@ -421,11 +424,10 @@ def register_discord_host(bot: Any, services: Any) -> list[Any]:
 
 
 async def clear_guild_slash_overrides(bot: Any) -> int:
-    """Remove per-guild slash copies. Do **not** call this on startup.
+    """Remove per-guild slash copies. Prefer clearing **globals** instead.
 
-    Guild copies from `tree.copy_global_to` + `sync(guild=)` make commands
-    appear immediately. Clearing them leaves only globals, which Discord can
-    hide for up to an hour.
+    Startup keeps guild copies (instant ``/`` list) and clears remote globals
+    so the picker does not show each command twice.
     """
     cleared = 0
     for guild in list(bot.guilds):
@@ -434,7 +436,7 @@ async def clear_guild_slash_overrides(bot: Any) -> int:
             await bot.tree.sync(guild=guild)
             cleared += 1
             logger.info(
-                "Guild %s: сброшены guild slash overrides (без дублей)",
+                "Guild %s: сброшены guild slash overrides",
                 guild.id,
             )
         except discord.HTTPException:
@@ -442,12 +444,11 @@ async def clear_guild_slash_overrides(bot: Any) -> int:
     return cleared
 
 
-# Old name used by bot_app. Must not clear guild copies — that hides slash
-# commands for up to an hour.
+# Old name used by bot_app. Must not clear guild copies on startup.
 async def sync_host_commands_to_guilds(bot: Any) -> int:
     logger.warning(
-        "sync_host_commands_to_guilds is a no-op; clearing guild slash "
-        "hides commands. Use copy_global_to + sync(guild=) instead."
+        "sync_host_commands_to_guilds is a no-op; guild slash copies are "
+        "required for an immediate command list. Globals are cleared instead."
     )
     return 0
 

@@ -3,14 +3,18 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from bot.core.db import BridgeDatabase
 from bot.core.models import PassRequestStatus
 from bot.core.pass_config import (
     PassConfig,
+    pass_duration_setting_key,
     pass_role_setting_key,
+    resolve_pass_duration_sec,
     resolve_pass_role_id,
 )
-from bot.core.pass_service import PassService, format_remaining
+from bot.core.pass_service import PassService, format_pass_duration, format_remaining
 
 
 def _cfg(**kwargs: object) -> PassConfig:
@@ -53,6 +57,11 @@ def test_format_remaining() -> None:
     assert format_remaining(9) == "9 с"
     assert format_remaining(300) == "5 мин"
     assert format_remaining(18000) == "5 ч"
+
+
+def test_format_pass_duration_unlimited() -> None:
+    assert format_pass_duration(0) == "без ограничения"
+    assert format_pass_duration(3600) == "1 ч"
 
 
 def test_create_then_approve_sets_expiry(tmp_path: Path) -> None:
@@ -170,6 +179,96 @@ def test_guild_setting_wins_over_env_role(tmp_path: Path) -> None:
     assert resolve_pass_role_id(db, "999", config) == "100"
 
 
+def test_resolve_pass_duration_defaults_and_unlimited(tmp_path: Path) -> None:
+    db = BridgeDatabase(str(tmp_path / "bridge.db"))
+    config = _cfg(duration_sec=5 * 3600)
+    assert resolve_pass_duration_sec(db, "200", config) == 5 * 3600
+    db.set_setting(pass_duration_setting_key("200"), "0")
+    assert resolve_pass_duration_sec(db, "200", config) == 0
+    db.set_setting(pass_duration_setting_key("200"), "3600")
+    assert resolve_pass_duration_sec(db, "200", config) == 3600
+    db.set_setting(pass_duration_setting_key("200"), "nope")
+    assert resolve_pass_duration_sec(db, "200", config) == 5 * 3600
+    assert resolve_pass_duration_sec(db, "999", config) == 5 * 3600
+
+
+def test_load_pass_config_allows_zero_duration_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DISCORD_PASS_DURATION_SEC", "0")
+    from bot.core.pass_config import load_pass_config
+
+    assert load_pass_config().duration_sec == 0
+
+
+def test_pass_rooms_cog_exposes_pass_config_command() -> None:
+    from bot.adapters.discord.pass_rooms import PassRoomsCog
+
+    assert hasattr(PassRoomsCog, "pass_config")
+    assert hasattr(PassRoomsCog, "setup_pass")
+
+
+def test_approve_unlimited_sets_expires_at_none(tmp_path: Path) -> None:
+    now = datetime(2026, 8, 25, 18, 0, tzinfo=UTC)
+    db = BridgeDatabase(str(tmp_path / "bridge.db"))
+    db.set_setting(pass_duration_setting_key("200"), "0")
+    svc = PassService(
+        db,
+        _cfg(debounce_sec=0),
+        now=lambda: now,
+        clock=lambda: now.timestamp(),
+    )
+    created = _create(svc)
+    assert created.ok is True
+    assert "без ограничения" in created.message
+    assert created.request is not None
+    decided = svc.approve(int(created.request.id), decided_by="admin")
+    assert decided.ok is True
+    assert decided.request is not None
+    assert decided.request.expires_at is None
+    assert "без ограничения" in decided.message
+    assert svc.due_grants() == []
+
+
+def test_unlimited_active_blocks_new_request(tmp_path: Path) -> None:
+    now = datetime(2026, 8, 25, 18, 0, tzinfo=UTC)
+    db = BridgeDatabase(str(tmp_path / "bridge.db"))
+    db.set_setting(pass_duration_setting_key("200"), "0")
+    svc = PassService(
+        db,
+        _cfg(debounce_sec=0),
+        now=lambda: now,
+        clock=lambda: now.timestamp(),
+    )
+    created = _create(svc)
+    assert created.request is not None
+    svc.approve(int(created.request.id), decided_by="admin")
+    again = _create(svc)
+    assert again.ok is False
+    assert again.reason == "active"
+
+
+def test_duration_change_does_not_rewrite_existing_grant(tmp_path: Path) -> None:
+    now = datetime(2026, 8, 25, 18, 0, tzinfo=UTC)
+    db = BridgeDatabase(str(tmp_path / "bridge.db"))
+    svc = PassService(
+        db,
+        _cfg(debounce_sec=0, duration_sec=5 * 3600),
+        now=lambda: now,
+        clock=lambda: now.timestamp(),
+    )
+    created = _create(svc)
+    assert created.request is not None
+    approved = svc.approve(int(created.request.id), decided_by="admin")
+    assert approved.request is not None
+    expires = approved.request.expires_at
+    assert expires == now + timedelta(hours=5)
+    db.set_setting(pass_duration_setting_key("200"), "0")
+    reloaded = svc.get(int(approved.request.id))
+    assert reloaded is not None
+    assert reloaded.expires_at == expires
+
+
 def test_double_approve_is_handled(tmp_path: Path) -> None:
     now = datetime(2026, 8, 25, 18, 0, tzinfo=UTC)
     svc = _svc(tmp_path, now)
@@ -253,3 +352,54 @@ def test_expire_keeps_expires_at(tmp_path: Path) -> None:
     assert expired is not None
     assert expired.status is PassRequestStatus.expired
     assert expired.expires_at == approved.request.expires_at
+
+
+def test_idle_expiry_sleep_uses_poll_interval(tmp_path: Path) -> None:
+    now = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
+    svc = _svc(tmp_path, now)
+    assert svc.next_sleep_sec() == svc.config.expiry_poll_sec
+
+
+def test_due_grants_after_duration(tmp_path: Path) -> None:
+    start = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
+    db = BridgeDatabase(str(tmp_path / "bridge.db"))
+    current = {"t": start}
+    svc = PassService(
+        db,
+        _cfg(duration_sec=3600, debounce_sec=0),
+        now=lambda: current["t"],
+        clock=lambda: current["t"].timestamp(),
+    )
+    created = _create(svc)
+    assert created.request is not None
+    svc.approve(int(created.request.id), decided_by="admin")
+    assert svc.due_grants() == []
+    assert svc.next_sleep_sec() == 3600
+
+    current["t"] = start + timedelta(hours=1)
+    due = svc.due_grants()
+    assert len(due) == 1
+    assert due[0].id == created.request.id
+    assert svc.next_sleep_sec() == 5.0
+
+
+def test_due_grants_catch_up_after_downtime(tmp_path: Path) -> None:
+    start = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
+    db = BridgeDatabase(str(tmp_path / "bridge.db"))
+    current = {"t": start}
+    svc = PassService(
+        db,
+        _cfg(duration_sec=60, debounce_sec=0),
+        now=lambda: current["t"],
+        clock=lambda: current["t"].timestamp(),
+    )
+    created = _create(svc)
+    assert created.request is not None
+    svc.approve(int(created.request.id), decided_by="admin")
+    current["t"] = start + timedelta(hours=3)
+    due = svc.due_grants()
+    assert len(due) == 1
+    expired = svc.expire(int(due[0].id))
+    assert expired is not None
+    assert expired.status is PassRequestStatus.expired
+    assert svc.due_grants() == []

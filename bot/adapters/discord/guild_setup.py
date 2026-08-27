@@ -55,8 +55,18 @@ def suggest_channel_overwrites(
 def publish_channel_overwrites(
     guild: discord.Guild,
     editor_role: discord.Role | None,
+    *,
+    invoker: discord.Member | None = None,
 ) -> dict[discord.Role | discord.Member, discord.PermissionOverwrite]:
-    """Everyone can read; only editor role + bot may write; editor manages."""
+    """Everyone can read; editor + bot + owner (+ invoker) may write."""
+    break_glass = discord.PermissionOverwrite(
+        view_channel=True,
+        read_message_history=True,
+        send_messages=True,
+        attach_files=True,
+        embed_links=True,
+        manage_messages=True,
+    )
     overwrites: dict[
         discord.Role | discord.Member, discord.PermissionOverwrite
     ] = {
@@ -67,8 +77,18 @@ def publish_channel_overwrites(
             attach_files=False,
             embed_links=False,
             manage_messages=False,
+            create_public_threads=False,
+            create_private_threads=False,
+            send_messages_in_threads=False,
+            send_voice_messages=False,
+            send_polls=False,
         )
     }
+    owner = getattr(guild, "owner", None)
+    if owner is not None:
+        overwrites[owner] = break_glass
+    if invoker is not None:
+        overwrites[invoker] = break_glass
     if editor_role is not None:
         overwrites[editor_role] = discord.PermissionOverwrite(
             view_channel=True,

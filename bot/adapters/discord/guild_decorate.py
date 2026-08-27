@@ -102,8 +102,14 @@ CHANNELS: tuple[ChannelSpec, ...] = (
         category_key="suggest",
         readonly=True,
     ),
-    # Legacy leftover after rebind — decorate only.
-    ChannelSpec("посты-опубликованно", "📦", category_key="suggest"),
+    # Legacy leftover after rebind — decorate only; members must not write.
+    ChannelSpec(
+        "посты-опубликовано",
+        "📦",
+        category_key="suggest",
+        readonly=True,
+        aliases=("посты-опубликованно",),
+    ),
     ChannelSpec("анон-чат", "🎭"),
     ChannelSpec("анон-чат-админ", "🔐"),
     ChannelSpec("администратоство", "🛠️"),
@@ -294,7 +300,9 @@ async def apply_guild_layout(
             except (discord.Forbidden, discord.HTTPException):
                 pass
 
-        if spec.readonly and isinstance(channel, discord.TextChannel):
+        if (
+            spec.readonly or is_publish_channel_name(channel.name)
+        ) and isinstance(channel, discord.TextChannel):
             try:
                 await channel.edit(
                     overwrites=publish_channel_overwrites(guild, editor),

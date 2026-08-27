@@ -401,12 +401,14 @@ def test_guild_config_roles(db: BridgeDatabase) -> None:
             mod_channel_id="2",
             propose_role_ids=["10", "11"],
             mod_role_ids=["20"],
+            admin_role_ids=["30"],
         )
     )
     stored = guilds.get("900")
     assert stored is not None
     assert stored.propose_role_ids == ["10", "11"]
     assert stored.mod_role_ids == ["20"]
+    assert stored.admin_role_ids == ["30"]
     assert guilds.can_propose("900", ["11"]) is True
     assert guilds.can_propose("900", ["99"]) is False
     assert guilds.can_moderate("900", ["20"]) is True
@@ -414,6 +416,22 @@ def test_guild_config_roles(db: BridgeDatabase) -> None:
     # Unknown guild: proposing is open, moderating is not.
     assert guilds.can_propose("901", []) is True
     assert guilds.can_moderate("901", ["20"]) is False
+
+
+def test_guild_config_set_admin_roles(db: BridgeDatabase) -> None:
+    guilds = GuildConfigService(db)
+    updated = guilds.set_roles("900", admin_role_ids=["40", "41"])
+    assert updated.admin_role_ids == ["40", "41"]
+    assert guilds.get("900") is not None
+    assert guilds.get("900").admin_role_ids == ["40", "41"]  # type: ignore[union-attr]
+    cleared = guilds.set_roles("900", admin_role_ids=[])
+    assert cleared.admin_role_ids == []
+    # Other role fields untouched when only admin_role_ids is set.
+    guilds.set_roles("900", propose_role_ids=["10"], mod_role_ids=["20"])
+    again = guilds.set_roles("900", admin_role_ids=["50"])
+    assert again.propose_role_ids == ["10"]
+    assert again.mod_role_ids == ["20"]
+    assert again.admin_role_ids == ["50"]
 
 
 def test_guild_config_channels_upsert(db: BridgeDatabase) -> None:

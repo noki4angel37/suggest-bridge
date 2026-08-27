@@ -263,7 +263,7 @@ class HostPanelUI:
             # Current primary holder or owner accepts claim/offer targeting this primary.
             holder = snap.holder_admin
             if req.kind == "claim" and (
-                (holder and holder == uid) or self._is_owner(user_id) or snap.is_primary
+                (holder and holder == uid) or self._is_owner(user_id)
             ):
                 if req.id not in pending_for_me:
                     pending_for_me.append(req.id)
