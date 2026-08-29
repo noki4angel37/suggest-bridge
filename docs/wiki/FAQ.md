@@ -27,6 +27,9 @@ Telegram FSM в MemoryStorage. Данные очереди в SQLite сохра�
 **Почему `/admin_list` не работает?**  
 Команды нет. Правильное имя: **`/admins_list`** (Discord) или `/admins` (Telegram).
 
+**Почему `/adminhelp` нет в Discord?**  
+Это **только Telegram** (личка админа). В Discord slash-справки нет — смотрите [[Команды]] и [[Слэш-команды-Discord]]. Аналоги: `/admins` → `/admins_list`, `/addadmin` → `/admin_add`, `/download` → `/download_bot`.
+
 **Wiki и README расходятся?**  
 README — обзор. Wiki — операторский справочник по `main`. Релизный тег может отставать — [CHANGELOG](https://github.com/noki4angel37/suggest-bridge/blob/main/CHANGELOG.md).
 

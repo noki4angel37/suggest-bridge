@@ -961,7 +961,7 @@ def test_build_telegram_router_orders_flows_and_attaches_events(
         "admin_host",
         "tg-user",
     ]
-    assert len(router.message.outer_middleware) == 1
+    assert len(router.message.outer_middleware) == 2
     assert len(router.callback_query.outer_middleware) == 1
     assert services.guilds is not None
 

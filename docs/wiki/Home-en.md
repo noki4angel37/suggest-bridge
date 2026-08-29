@@ -1,8 +1,8 @@
 # Suggest Bridge (English)
 
-**Suggest Bridge** is a self-hosted bot for community suggestions: members send ideas via Telegram or Discord, moderators review them, and approved posts are published to a Telegram channel and/or a Discord feed.
+**Suggest Bridge** is a self-hosted **Telegram ↔ Discord community platform**: suggest submissions, cross-platform bridge, and a shared moderation queue are equal modules on one core. Also: pass requests, casino mini-games, Multi-PC host.
 
-Members do not need tokens, servers, or setup — just DM the bot or use a command on Discord.
+Members do not need tokens, servers, or setup — just DM the bot or use a command on Discord (see the **suggest** module below).
 
 | | |
 |---|---|
@@ -14,7 +14,16 @@ Members do not need tokens, servers, or setup — just DM the bot or use a comma
 
 > Russian documentation: [[Home]]. Admin quick start: [[Быстрый-старт]] or [README](https://github.com/noki4angel37/suggest-bridge/blob/main/README.en.md).
 
-## How it works
+## Platform modules
+
+| Module | Purpose |
+|--------|---------|
+| [[Модерация]] / suggest | Submissions → queue → publish |
+| [[Зеркало-ленты]] | TG↔DS bridge, dual-publish |
+| [[Проходка]] | Temporary roles via moderation |
+| Custom | [[Модули]], [[Добавить-модуль]] — `SB_MODULES` |
+
+## How the suggest module works
 
 1. **You submit** text or media (up to 400 characters in the caption).
 2. **Moderators review** the submission in a queue — approve, reject, or ask for clarification.
@@ -32,15 +41,13 @@ Members do not need tokens, servers, or setup — just DM the bot or use a comma
 
 1. Configure tokens — [[Конфигурация]], [[Telegram]], [[Discord]]
 2. Run the bot — [[Быстрый-старт]] / [[Деплой]]
-3. Reference — [[Команды]], [[Модерация]]
+3. Reference — [[Команды]], [[Модерация]], [[Модули]]
 4. Incidents — [[Устранение-неисправностей]]
 
 ## Repository
 
 | Document | Purpose |
-|----------|---------|
-| [README.en.md](https://github.com/noki4angel37/suggest-bridge/blob/main/README.en.md) | Overview (English) |
-| [README.md](https://github.com/noki4angel37/suggest-bridge/blob/main/README.md) | Overview (Russian) |
-| [SETUP.md](https://github.com/noki4angel37/suggest-bridge/blob/main/SETUP.md) | Installation |
-| [SECURITY.md](https://github.com/noki4angel37/suggest-bridge/blob/main/SECURITY.md) | Report vulnerabilities |
+|----------|------------|
+| [README.en.md](https://github.com/noki4angel37/suggest-bridge/blob/main/README.en.md) | Overview |
+| [SETUP.md](https://github.com/noki4angel37/suggest-bridge/blob/main/SETUP.md) | Install |
 | [Issues](https://github.com/noki4angel37/suggest-bridge/issues) | Bugs and ideas |

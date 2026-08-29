@@ -10,6 +10,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from bot.core.module_loader import ModuleRegistry
+from bot.core.modules import ModuleContext
+
 from bot.adapters.discord.admin_commands import register_discord_admin
 from bot.adapters.discord.context import (
     BridgeServices,
@@ -34,6 +37,7 @@ from bot.core.pass_service import PassService
 logger = logging.getLogger(__name__)
 
 BotReadyHook = Callable[[discord.Client], Awaitable[None]]
+ModuleContextFactory = Callable[..., ModuleContext]
 
 
 class RuExtrasTranslator(app_commands.Translator):
@@ -72,6 +76,8 @@ class SuggestBot(commands.Bot):
         sync_commands: bool = True,
         on_bot_ready: BotReadyHook | None = None,
         mirror: ChannelMirrorService | None = None,
+        module_registry: ModuleRegistry | None = None,
+        module_context_factory: ModuleContextFactory | None = None,
     ) -> None:
         super().__init__(
             command_prefix=commands.when_mentioned,
@@ -82,6 +88,8 @@ class SuggestBot(commands.Bot):
         self.sync_commands = sync_commands
         self.on_bot_ready_hook = on_bot_ready
         self.mirror = mirror
+        self.module_registry = module_registry
+        self.module_context_factory = module_context_factory
         self.event_sync = DiscordEventSync(self, ctx)
         self._slash_guilds_synced: set[int] = set()
         self._slash_publish_lock = asyncio.Lock()
@@ -110,6 +118,12 @@ class SuggestBot(commands.Bot):
 
         register_discord_host(self, self.ctx.services)
         self.event_sync.register()
+        if self.module_registry is not None and self.module_context_factory is not None:
+            module_ctx = self.module_context_factory(
+                discord_bot=self,
+                discord_ctx=self.ctx,
+            )
+            await self.module_registry.setup_discord_all(module_ctx)
         await self.tree.set_translator(RuExtrasTranslator())
 
         async def _log_slash_interaction(interaction: discord.Interaction) -> None:
@@ -315,6 +329,8 @@ def create_bot(
     on_bot_ready: BotReadyHook | None = None,
     mirror: ChannelMirrorService | None = None,
     telegram_bot: object | None = None,
+    module_registry: ModuleRegistry | None = None,
+    module_context_factory: ModuleContextFactory | None = None,
 ) -> SuggestBot:
     ctx = DiscordContext(
         services=resolve_services(services),
@@ -329,6 +345,8 @@ def create_bot(
         sync_commands=sync_commands,
         on_bot_ready=on_bot_ready,
         mirror=mirror,
+        module_registry=module_registry,
+        module_context_factory=module_context_factory,
     )
 
 
@@ -344,6 +362,8 @@ async def start_discord(
     on_bot_ready: BotReadyHook | None = None,
     mirror: ChannelMirrorService | None = None,
     telegram_bot: object | None = None,
+    module_registry: ModuleRegistry | None = None,
+    module_context_factory: ModuleContextFactory | None = None,
 ) -> None:
     """Run the Discord adapter until cancelled (entry point for Agent E)."""
     if not token or token == "REPLACE_ME":
@@ -358,6 +378,8 @@ async def start_discord(
         on_bot_ready=on_bot_ready,
         mirror=mirror,
         telegram_bot=telegram_bot,
+        module_registry=module_registry,
+        module_context_factory=module_context_factory,
     )
     async with bot:
         await bot.start(token)

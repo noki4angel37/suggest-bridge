@@ -13,6 +13,10 @@ Thanks for helping improve Suggest Bridge.
 2. Run tests: `pytest -q`
 3. Keep changes focused; update CHANGELOG for user-visible fixes.
 
+## Modules
+
+Built-in features (suggest, bridge, moderation, pass, …) ship with the core. **Third-party modules** load via `SB_MODULES` — see wiki [[Модули]] and [[Добавить-модуль]]. Example: `examples/sample_module/`.
+
 ## Code
 
 - Python 3.11+

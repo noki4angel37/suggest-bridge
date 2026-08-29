@@ -42,6 +42,8 @@ from bot.core.host_control import (
     clear_primary_markers,
 )
 from bot.core.host_sync import HostSyncStore
+from bot.core.module_loader import ModuleRegistry
+from bot.core.modules import ModuleContext
 from bot.core.publish_router import PublishRouter
 
 logger = logging.getLogger(__name__)
@@ -75,9 +77,28 @@ class Bridge:
     publish_router: PublishRouter
     discord_publisher: DiscordChannelPublisher
     mirror: ChannelMirrorService
+    modules: ModuleRegistry
     bot: Bot | None = None
     dp: Dispatcher | None = None
     _discord_client: object | None = field(default=None, repr=False)
+
+    def module_context(
+        self,
+        *,
+        discord_bot: object | None = None,
+        discord_ctx: object | None = None,
+    ) -> ModuleContext:
+        return ModuleContext(
+            config=self.config,
+            db=self.db,
+            bus=self.bus,
+            services=self.services,
+            logger=logger,
+            telegram_bot=self.bot,
+            dp=self.dp,
+            discord_bot=discord_bot,
+            discord_ctx=discord_ctx,
+        )
 
     async def publish_now(self, submission: Submission) -> object:
         """Publish hook for adapters: approve → dual-publish router."""
@@ -110,6 +131,8 @@ class Bridge:
                     on_bot_ready=self._on_discord_ready,
                     mirror=self.mirror,
                     telegram_bot=self.bot,
+                    module_registry=self.modules,
+                    module_context_factory=self.module_context,
                 )
                 logger.warning(
                     "Discord-адаптер завершился без ошибки — переподключение через %.0f с",
@@ -213,6 +236,9 @@ def build_bridge(config: BridgeConfig, *, bot: Bot | None = None) -> Bridge:
 
     scheduler = Scheduler(db, services.moderation, router.publish, bus=bus)
 
+    modules = ModuleRegistry()
+    modules.load_from_env()
+
     return Bridge(
         config=config,
         db=db,
@@ -224,6 +250,7 @@ def build_bridge(config: BridgeConfig, *, bot: Bot | None = None) -> Bridge:
         publish_router=router,
         discord_publisher=discord_publisher,
         mirror=mirror,
+        modules=modules,
     )
 
 
@@ -324,6 +351,11 @@ async def run_bridge(config: BridgeConfig | None = None) -> int:
     if telegram_enabled and bridge.bot is not None:
         await _setup_telegram_commands(bridge.bot)
 
+    module_ctx = bridge.module_context()
+    await bridge.modules.setup_all(module_ctx)
+    if telegram_enabled and bridge.dp is not None:
+        await bridge.modules.setup_telegram_all(module_ctx)
+
     await bridge.scheduler.start()
     heartbeat_task: asyncio.Task[None] | None = None
     if telegram_enabled:
@@ -410,13 +442,17 @@ async def run_bridge(config: BridgeConfig | None = None) -> int:
             release(bridge.db, host_id)
         clear_primary_markers(bridge.db)
         mirror_state(bridge.db, sync)
-        await _shutdown(bridge, discord_task)
+        await _shutdown(bridge, discord_task, module_ctx)
     return 0
 
 
 async def _shutdown(
-    bridge: Bridge, discord_task: asyncio.Task[None] | None
+    bridge: Bridge,
+    discord_task: asyncio.Task[None] | None,
+    module_ctx: ModuleContext | None = None,
 ) -> None:
+    if module_ctx is not None:
+        await bridge.modules.teardown_all(module_ctx)
     if discord_task is not None:
         discord_task.cancel()
         try:

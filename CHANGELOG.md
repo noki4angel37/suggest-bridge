@@ -31,13 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Product positioning: Suggest Bridge is a **modular platform** (suggest, bridge, moderation are equal modules), not «suggest bot only»
 - Discord slash command tree can attach a Russian translator (`locale_str(..., ru=...)`) so localized names work when commands use it
 - Documentation consolidated in GitHub Wiki; GitHub Pages removed
 - Subscriber pages moved to wiki: Как-отправить-заявку, FAQ-подписчиков, Discord-сервер
-
-### Added
-
-- Discord pass rooms: `/prohodka` requests a temporary role via suggest moderation; `/setup_pass` creates or locks channels behind that role (repeatable, not theme-specific)
 - Wiki: subscriber pages (rules, UI examples, news), admin onboarding (first launch, Discord layout, run modes), operator deep-dives (mirror, anti-flood, roles, scheduled publish, migration, host requirements), English member docs, privacy and wiki contribution guides
 - README: subscriber section above admin quick start; Discord badge and wiki link; documentation table
 - Public Discord invite in README, SETUP, CONTRIBUTING, wiki sidebar/footer
@@ -46,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker runs as non-root user; GitHub Actions pinned by commit SHA
 - Deploy scripts `scripts/deploy/prepare-env.*`, multi-page wiki source [`docs/wiki/`](docs/wiki/) (publish notes [docs/WIKI.md](docs/WIKI.md))
 - Discord invite permissions documented as **268561488** (adds Manage Roles for `/setup_suggest`)
+
+### Added
+
+- **Plugin API:** load third-party modules via `SB_MODULES` (`bot/core/modules.py`, `module_loader.py`); hooks `setup`, `setup_telegram`, `setup_discord`, `teardown`
+- Example module: `examples/sample_module/` (`/sample_ping` on TG and Discord when enabled)
+- Wiki: Модули, Добавить-модуль; README repositioned as modular TG↔DS community platform
+- Discord pass rooms: `/prohodka` requests a temporary role via suggest moderation; `/setup_pass` creates or locks channels behind that role (repeatable, not theme-specific)
 
 ## [0.1.0] - 2026-08-22
 
