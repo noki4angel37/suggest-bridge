@@ -1,8 +1,6 @@
 # Publish to GitHub
 
-The repo is ready at `c:\!projects\suggest-bridge` (committed, tagged `v0.1.0`).
-
-Release zip: `dist/suggest-bot-20260822-1526.zip`
+Release zip: `dist/suggest-bot-*.zip` (CI on tag `v*.*.*`).
 
 ## One-time login
 
@@ -14,12 +12,18 @@ gh auth login
 ## Create repo and push
 
 ```powershell
-cd c:\!projects\suggest-bridge
-gh repo create suggest-bridge --public --source=. --remote=origin --push --description "Self-hosted Telegram Discord suggest bot"
+cd suggest-bridge
+gh repo create suggest-bridge --public --source=. --remote=origin --push --description "Self-hosted Telegram-Discord community platform: suggest, bridge, moderation modules (SB_MODULES)"
 git push origin v0.1.0
 gh release create v0.1.0 dist/suggest-bot-*.zip --title "v0.1.0" --notes-file CHANGELOG.md
 ```
 
 ## GitHub topics (optional)
 
-`suggest-bot`, `telegram-bot`, `discord-bot`, `self-hosted`, `python`, `aiogram`, `community`
+`suggest-bot`, `telegram-bot`, `discord-bot`, `self-hosted`, `python`, `aiogram`, `community`, `community-platform`, `discord-telegram-bridge`
+
+```powershell
+gh api --method PUT repos/OWNER/suggest-bridge/topics `
+  -H "Accept: application/vnd.github+json" `
+  -f names='["suggest-bot","telegram-bot","discord-bot","self-hosted","python","aiogram","community","community-platform","discord-telegram-bridge"]'
+```
