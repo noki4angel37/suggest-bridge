@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Plugin API:** load third-party modules via `SB_MODULES` (`bot/core/modules.py`, `module_loader.py`); hooks `setup`, `setup_telegram`, `setup_discord`, `teardown`
+- Plugin API hardening: repo-root path resolution, dedup specs, `setup_discord` once per process, LIFO `teardown` with Discord context, `/healthz` `checks.modules`, `SB_MODULES_STRICT`, `python -m bot.core.module_loader` validate CLI
 - Example module: `examples/sample_module/` (`/sample_ping` on TG and Discord when enabled)
 - Wiki: Модули, Добавить-модуль; README repositioned as modular TG↔DS community platform
 - Discord pass rooms: `/prohodka` requests a temporary role via suggest moderation; `/setup_pass` creates or locks channels behind that role (repeatable, not theme-specific)

@@ -30,6 +30,7 @@ async def build_health_payload(
     telegram_ok: Callable[[], bool] | None = None,
     discord_ok: Callable[[], bool] | None = None,
     lease_ok: Callable[[], bool] | None = None,
+    modules_ok: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
     checks: dict[str, bool] = {}
     if telegram_ok is not None:
@@ -38,6 +39,8 @@ async def build_health_payload(
         checks["discord"] = discord_ok()
     if lease_ok is not None:
         checks["lease"] = lease_ok()
+    if modules_ok is not None:
+        checks["modules"] = modules_ok()
     ok = all(checks.values()) if checks else True
     return {"status": "ok" if ok else "degraded", "checks": checks}
 
@@ -47,6 +50,7 @@ async def start_health_server(
     telegram_ok: Callable[[], bool] | None = None,
     discord_ok: Callable[[], bool] | None = None,
     lease_ok: Callable[[], bool] | None = None,
+    modules_ok: Callable[[], bool] | None = None,
 ) -> asyncio.Task[None] | None:
     port = health_port()
     if port is None:
@@ -62,6 +66,7 @@ async def start_health_server(
             telegram_ok=telegram_ok,
             discord_ok=discord_ok,
             lease_ok=lease_ok,
+            modules_ok=modules_ok,
         )
         code = 200 if payload["status"] == "ok" else 503
         return web.Response(

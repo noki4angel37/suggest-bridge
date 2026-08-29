@@ -42,7 +42,7 @@ from bot.core.host_control import (
     clear_primary_markers,
 )
 from bot.core.host_sync import HostSyncStore
-from bot.core.module_loader import ModuleRegistry
+from bot.core.module_loader import ModuleRegistry, enforce_strict_load
 from bot.core.modules import ModuleContext
 from bot.core.publish_router import PublishRouter
 
@@ -237,7 +237,8 @@ def build_bridge(config: BridgeConfig, *, bot: Bot | None = None) -> Bridge:
     scheduler = Scheduler(db, services.moderation, router.publish, bus=bus)
 
     modules = ModuleRegistry()
-    modules.load_from_env()
+    summary = modules.load_from_env()
+    enforce_strict_load(summary)
 
     return Bridge(
         config=config,
@@ -390,10 +391,14 @@ async def run_bridge(config: BridgeConfig | None = None) -> int:
 
             return is_host_primary(bridge.db, host_id)
 
+        def _modules_ok() -> bool:
+            return bridge.modules.health_ok()
+
         health_task = await start_health_server(
             telegram_ok=_telegram_ok if telegram_enabled else None,
             discord_ok=_discord_ok if discord_enabled else None,
             lease_ok=_lease_ok if telegram_enabled else None,
+            modules_ok=_modules_ok,
         )
     except Exception:  # noqa: BLE001
         logger.exception("Health server failed to start")
@@ -442,17 +447,16 @@ async def run_bridge(config: BridgeConfig | None = None) -> int:
             release(bridge.db, host_id)
         clear_primary_markers(bridge.db)
         mirror_state(bridge.db, sync)
-        await _shutdown(bridge, discord_task, module_ctx)
+        await _shutdown(bridge, discord_task)
     return 0
 
 
 async def _shutdown(
     bridge: Bridge,
     discord_task: asyncio.Task[None] | None,
-    module_ctx: ModuleContext | None = None,
 ) -> None:
-    if module_ctx is not None:
-        await bridge.modules.teardown_all(module_ctx)
+    bridge.modules.merge_context(discord_bot=bridge._discord_client)
+    await bridge.modules.teardown_all()
     if discord_task is not None:
         discord_task.cancel()
         try:
