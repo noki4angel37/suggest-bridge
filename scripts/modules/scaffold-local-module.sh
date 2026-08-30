@@ -13,5 +13,6 @@ echo "Created: $DEST"
 echo
 echo "Add to .env:"
 echo "SB_MODULES=${DEST}:${CLASS_NAME}"
+echo "(On Windows in .env prefer forward slashes: C:/path/to/hello_module.py:HelloModule)"
 echo
 echo "Validate: python -m bot.core.module_loader"

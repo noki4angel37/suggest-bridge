@@ -40,9 +40,10 @@ SB_MODULES=/opt/modules/a.py:ModuleA,/opt/modules/b.py:ModuleB
 
 ## Бот стартует, но модуль не работает
 
-1. `curl -s http://127.0.0.1:8080/healthz` → `"checks":{"modules":false}` — смотрите логи при старте (`Failed to load SB_MODULES`).
-2. Включите `SB_MODULES_STRICT=1` на время отладки — процесс не поднимется с битой записью.
-3. Хук упал после загрузки — в логах `Module … hook … failed`; остальные модули и встроенные фичи могут работать.
+1. `curl -s http://127.0.0.1:8080/healthz` → `"checks":{"modules":false}` — смотрите логи при старте (`Failed to load SB_MODULES` или `Module … hook … failed`).
+2. **`module_loader` прошёл, healthz — false:** validate проверяет только import/class; hooks выполняются при **запуске бота** — ошибка в `setup` / `setup_discord` / `setup_telegram`.
+3. **`checks.modules: true`, но команды нет:** `SB_MODULES` пустой или закомментирован — healthz ok для «0 модулей».
+4. Включите `SB_MODULES_STRICT=1` на время отладки **spec** — процесс не поднимется с битой записью в allowlist (не ловит hook failures).
 
 ## Discord: команда не появилась / дубли
 

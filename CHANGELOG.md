@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Discord `/` picker no longer shows each slash command twice: publish **global only** and clear per-guild command buckets on startup (guild+global duplicates / client cache)
+- `python -m bot.core.module_loader` validate CLI: import `bootstrap_env` from `bot.config` (was broken `bot.settings` import)
+- Module onboarding docs: correct clone-before-scaffold order; validate vs runtime hooks; `checks.modules` runbook and FAQ clarifications
 - `/decorate_server` announce-locks leftover publish aliases (`#посты-опубликовано` / `#посты-опубликованно`); members can read the feed but cannot write
 - Telegram network errors no longer stop the whole process (Discord stays connected; polling retries)
 - Windows console logging uses UTF-8 with replacement so emoji in channel names does not crash the logger

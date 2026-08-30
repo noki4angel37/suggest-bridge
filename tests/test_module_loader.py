@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -243,3 +246,34 @@ def test_load_sample_module_from_repo_relative() -> None:
     summary = registry.load_specs(["examples/sample_module/module.py:SampleModule"])
     assert summary.loaded == 1
     assert registry.modules[0].name == "sample"
+
+
+def test_module_loader_cli_empty() -> None:
+    env = os.environ.copy()
+    env.pop("SB_MODULES", None)
+    result = subprocess.run(
+        [sys.executable, "-m", "bot.core.module_loader"],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "SB_MODULES: (empty)" in result.stdout
+
+
+def test_module_loader_cli_loads_sample() -> None:
+    env = os.environ.copy()
+    env["SB_MODULES"] = "examples/sample_module/module.py:SampleModule"
+    result = subprocess.run(
+        [sys.executable, "-m", "bot.core.module_loader"],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "loaded 1/1" in result.stdout
+    assert "sample" in result.stdout

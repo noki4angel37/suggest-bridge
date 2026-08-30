@@ -4,9 +4,11 @@ Guide for **local** extensions to Suggest Bridge. You do not need to fork the co
 
 Russian: [[Добавить-модуль]] · Overview: [[Модули]] · Troubleshooting: [[Module-FAQ-en]] · [[FAQ-модулей]]
 
-## Quick path (5 minutes)
+## Quick path (after clone + venv)
 
-1. **Scaffold** (optional) — copy the template outside this repo:
+Prerequisites: cloned [suggest-bridge](https://github.com/noki4angel37/suggest-bridge), `pip install -r requirements.txt`, `.env` with at least `SB_MODULES` (full tokens needed only to **run** the bot).
+
+1. **Scaffold** (from repo root) or copy `examples/local_module_template/hello_module.py` outside this repo.
 
    ```powershell
    .\scripts\modules\scaffold-local-module.ps1 -OutDir C:\path\to\modules
@@ -30,23 +32,23 @@ Russian: [[Добавить-модуль]] · Overview: [[Модули]] · Trou
    SB_MODULES=/opt/modules/a.py:ModuleA,/opt/modules/b.py:ModuleB
    ```
 
-3. **Validate** without starting the full bot:
+3. **Validate** (no full bot, from repo root):
 
    ```bash
    python -m bot.core.module_loader
    ```
 
-   Exit code `0` and `loaded N/N` means the spec resolves. Fix paths before restart.
+   Checks import path and class only — **not** TG/DS hooks. Fix errors before restart.
 
 4. **Restart** the bot process (`python -m bot.main`, Docker `compose restart`, or your systemd unit).
 
-5. **Health check**:
+5. **Health check** (live process):
 
    ```bash
    curl -s http://127.0.0.1:8080/healthz
    ```
 
-   JSON field `checks.modules` must be `true`. For strict startup, set `SB_MODULES_STRICT=1` so a broken spec aborts boot.
+   JSON field `checks.modules` must be `true` when your module is listed in `SB_MODULES`. Empty `SB_MODULES` also yields `true` — verify the spec is not commented out. For debugging load errors, set `SB_MODULES_STRICT=1` (aborts boot on bad **spec**, not on hook failures).
 
 ## Recommended layout
 

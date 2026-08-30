@@ -41,14 +41,15 @@ Suggest example: a member DMs the bot or uses `/suggest` — moderators review t
 
 ---
 
-## Your module (5 min)
+## Your module (quick start)
 
-For local extensions — before subscriber and admin sections:
+For local extensions — **after** clone and venv (see [Quick start](#quick-start-5-min) below):
 
-1. **Scaffold:** `bash scripts/modules/scaffold-local-module.sh ~/suggest-bridge-modules` or copy `examples/local_module_template/hello_module.py` **outside** the repo.
-2. Clone the repo and prepare `.env` (see [Quick start](#quick-start-5-min) below).
+1. Clone the repo, `pip install -r requirements.txt`, prepare `.env` (tokens required to **run** the bot; loader-only check needs only `SB_MODULES` in `.env`).
+2. **Scaffold** from repo root: `bash scripts/modules/scaffold-local-module.sh ~/suggest-bridge-modules` or copy `examples/local_module_template/hello_module.py` **outside** the repo.
 3. Point `SB_MODULES` at your file (no PR to this repo).
-4. Validate: `python -m bot.core.module_loader` → restart the bot → `curl http://127.0.0.1:8080/healthz` (`checks.modules`).
+4. **Validate (no full bot):** from repo root with venv active — `python -m bot.core.module_loader` (path + class only; **does not** run TG/DS hooks).
+5. **Runtime:** restart `python -m bot.main` (or Docker/systemd) → `curl http://127.0.0.1:8080/healthz` — `checks.modules` (live process + `HEALTH_PORT` required).
 
 Details: wiki **[Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Add module](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en)** · **[Module FAQ](https://github.com/noki4angel37/suggest-bridge/wiki/Module-FAQ-en)** · [FAQ модулей (RU)](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей) · samples `examples/sample_module/`, `examples/local_module_template/`.
 

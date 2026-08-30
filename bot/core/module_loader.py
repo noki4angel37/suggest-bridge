@@ -294,9 +294,7 @@ def enforce_strict_load(summary: ModuleLoadSummary) -> None:
 
 
 if __name__ == "__main__":
-    import sys
-
-    from bot.settings import bootstrap_env
+    from bot.config import bootstrap_env
 
     bootstrap_env()
     specs = parse_module_specs(os.environ.get(ENV_MODULES, ""))

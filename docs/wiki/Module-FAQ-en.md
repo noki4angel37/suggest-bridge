@@ -40,9 +40,10 @@ The error prints `repo root` and `cwd`. Check:
 
 ## Bot starts but my module does nothing
 
-1. `curl -s http://127.0.0.1:8080/healthz` → `"checks":{"modules":false}` — check startup logs for `Failed to load SB_MODULES`.
-2. Set `SB_MODULES_STRICT=1` while debugging so a bad spec aborts boot.
-3. Hook failed after load — log line `Module … hook … failed`; other modules may still run.
+1. `curl -s http://127.0.0.1:8080/healthz` → `"checks":{"modules":false}` — check startup logs for `Failed to load SB_MODULES` or `Module … hook … failed`.
+2. **`module_loader` OK, healthz false:** validate checks import/class only; hooks run when the **bot starts** — errors in `setup` / `setup_discord` / `setup_telegram`.
+3. **`checks.modules: true` but no commands:** empty or commented `SB_MODULES` — healthz is ok for «0 modules».
+4. Set `SB_MODULES_STRICT=1` while debugging **spec** load — aborts boot on bad allowlist entry (not hook failures).
 
 ## Discord: slash missing or duplicated
 
