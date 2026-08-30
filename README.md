@@ -45,11 +45,12 @@ English: [README.en.md](README.en.md) · **Документация:** [Wiki](ht
 
 Для авторов локальных расширений — до разделов про подписчиков и админов:
 
-1. Клонируйте репозиторий и подготовьте `.env` (см. [Быстрый старт](#быстрый-старт-5-минут) ниже).
-2. Напишите класс модуля на своей машине; укажите путь в `SB_MODULES` (не PR в этот GitHub).
-3. Проверка: `python -m bot.core.module_loader` → перезапуск бота → `curl http://127.0.0.1:8080/healthz` (`checks.modules`).
+1. **Шаблон:** `bash scripts/modules/scaffold-local-module.sh ~/suggest-bridge-modules` или скопируйте `examples/local_module_template/hello_module.py` **вне** репозитория.
+2. Клонируйте репозиторий и подготовьте `.env` (см. [Быстрый старт](#быстрый-старт-5-минут) ниже).
+3. Укажите путь в `SB_MODULES` (не PR в этот GitHub).
+4. Проверка: `python -m bot.core.module_loader` → перезапуск бота → `curl http://127.0.0.1:8080/healthz` (`checks.modules`).
 
-Подробно: wiki **[Модули](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Добавить модуль](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль)** · образец `examples/sample_module/`.
+Подробно: wiki **[Модули](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Добавить модуль](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль)** · **[FAQ модулей](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей)** · **[Add module (EN)](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en)** · образцы `examples/sample_module/`, `examples/local_module_template/`.
 
 ---
 
@@ -159,7 +160,9 @@ docker compose up -d
 |----------|----------|
 | **[Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** | Вся документация: подписчики и операторы |
 | [Модули](https://github.com/noki4angel37/suggest-bridge/wiki/Модули) | Примеры в комплекте и `SB_MODULES` |
-| [Добавить модуль](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль) | Свои модули локально (не в этот GitHub) |
+| [Добавить модуль](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль) | Свои модули локально (RU) |
+| [FAQ модулей](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей) | Пути, healthz, troubleshooting |
+| [Add module (EN)](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en) | English author guide |
 | [Как отправить заявку](https://github.com/noki4angel37/suggest-bridge/wiki/Как-отправить-заявку) | Подписчики |
 | [SETUP.md](SETUP.md) | Установка с нуля (Docker, Windows, systemd) |
 | [SECURITY.md](SECURITY.md) | Сообщить об уязвимости |

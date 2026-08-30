@@ -311,5 +311,7 @@ if __name__ == "__main__":
     )
     if summary.failed_specs:
         print("failed:", ", ".join(summary.failed_specs))
+        print(f"repo root: {REPO_ROOT}")
+        print(f"cwd: {Path.cwd()}")
         raise SystemExit(1)
     raise SystemExit(0)

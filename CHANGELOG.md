@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **SB_MODULES docs:** wiki [[Add-module-en]], [[FAQ-модулей]]; expanded [[Добавить-модуль]] and [[Модули]]; local template `examples/local_module_template/` and `scripts/modules/scaffold-local-module.*`
 - Public identity: Suggest Bridge is an **open-source Telegram↔Discord core**. Custom features stay local via `SB_MODULES` and are not merged into this repository; bundled modules are examples and cannot be disabled via env yet
 - August 2026 (historical): public docs moved off «suggest bot only» toward bundled suggest, bridge, and moderation on one core
 - Discord slash command tree can attach a Russian translator (`locale_str(..., ru=...)`) so localized names work when commands use it

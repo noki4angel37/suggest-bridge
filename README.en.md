@@ -45,11 +45,12 @@ Suggest example: a member DMs the bot or uses `/suggest` — moderators review t
 
 For local extensions — before subscriber and admin sections:
 
-1. Clone the repo and prepare `.env` (see [Quick start](#quick-start-5-min) below).
-2. Write a module class on your machine; point `SB_MODULES` at it (no PR to this repo).
-3. Validate: `python -m bot.core.module_loader` → restart the bot → `curl http://127.0.0.1:8080/healthz` (`checks.modules`).
+1. **Scaffold:** `bash scripts/modules/scaffold-local-module.sh ~/suggest-bridge-modules` or copy `examples/local_module_template/hello_module.py` **outside** the repo.
+2. Clone the repo and prepare `.env` (see [Quick start](#quick-start-5-min) below).
+3. Point `SB_MODULES` at your file (no PR to this repo).
+4. Validate: `python -m bot.core.module_loader` → restart the bot → `curl http://127.0.0.1:8080/healthz` (`checks.modules`).
 
-Details: wiki **[Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Add module](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль)** (RU; EN summary here) · sample `examples/sample_module/`.
+Details: wiki **[Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Add module](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en)** · **[Module FAQ](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей)** (RU) · samples `examples/sample_module/`, `examples/local_module_template/`.
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Suggest Bridge** is an open-source Telegram ↔ Discord **core**. You add features on your machine via `SB_MODULES`; they are not merged into this repository. Bundled examples: suggest, bridge, moderation, and others.
 
-Add your own features: [[Модули]] · [[Добавить-модуль]].
+Add your own features: [[Add-module-en]] · [[Модули]] · [[Добавить-модуль]].
 
 Members do not need tokens, servers, or setup — just DM the bot or use a command on Discord (see the **suggest** example below).
 
@@ -23,7 +23,9 @@ The core is what this repository ships. Your features stay on your machine: a pa
 | Page | Purpose |
 |------|---------|
 | [[Модули]] | How modules and `SB_MODULES` work |
-| [[Добавить-модуль]] | How to write a module and load it locally |
+| [[Добавить-модуль]] | Write and load a module locally (RU) |
+| [[Add-module-en]] | English author guide |
+| [[FAQ-модулей]] | Troubleshooting (RU) |
 
 ## Bundled examples
 

@@ -34,4 +34,4 @@ Restart the bot process after changing `.env`.
 - Telegram: `/sample_ping`
 - Discord: `/sample_ping`
 
-See wiki [[Добавить-модуль]] for the full author guide.
+See wiki [[Добавить-модуль]] · [[Add-module-en]] · [[FAQ-модулей]] for the full author guide.
