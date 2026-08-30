@@ -66,6 +66,6 @@
 
 1. Опишите проблему или идею в [Issues](https://github.com/noki4angel37/suggest-bridge/issues) — без токенов и личных данных.
 2. Напишите на [[Discord-сервер]] — если нужен быстрый обмен мнениями.
-3. Pull request приветствуются — см. [CONTRIBUTING](https://github.com/noki4angel37/suggest-bridge/blob/main/CONTRIBUTING.md).
+3. Pull request для **ядра и документации** — см. [CONTRIBUTING](https://github.com/noki4angel37/suggest-bridge/blob/main/CONTRIBUTING.md). Свои модули в этот репозиторий не присылайте.
 
 См. также: [[Новости]] · [[Home]] · [[Разработка]]
