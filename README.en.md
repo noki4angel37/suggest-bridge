@@ -41,6 +41,18 @@ Suggest example: a member DMs the bot or uses `/suggest` — moderators review t
 
 ---
 
+## Your module (5 min)
+
+For local extensions — before subscriber and admin sections:
+
+1. Clone the repo and prepare `.env` (see [Quick start](#quick-start-5-min) below).
+2. Write a module class on your machine; point `SB_MODULES` at it (no PR to this repo).
+3. Validate: `python -m bot.core.module_loader` → restart the bot → `curl http://127.0.0.1:8080/healthz` (`checks.modules`).
+
+Details: wiki **[Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Add module](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль)** (RU; EN summary here) · sample `examples/sample_module/`.
+
+---
+
 ## For community members
 
 No tokens or installation — just the Telegram bot or Discord server.
@@ -75,6 +87,8 @@ More in the Wiki: **[How to submit](https://github.com/noki4angel37/suggest-brid
 | Run modes | Telegram-only, Discord-only, or both |
 
 ### Architecture
+
+Diagram below — **bundled suggest module example** (not the only core capability):
 
 ```mermaid
 flowchart LR
