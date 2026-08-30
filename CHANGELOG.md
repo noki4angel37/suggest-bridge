@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Product positioning: Suggest Bridge is a **modular platform** (suggest, bridge, moderation are equal modules), not «suggest bot only»
+- Public identity: Suggest Bridge is an **open-source Telegram↔Discord core**. Custom features stay local via `SB_MODULES` and are not merged into this repository; bundled modules are examples and cannot be disabled via env yet
+- August 2026 (historical): public docs moved off «suggest bot only» toward bundled suggest, bridge, and moderation on one core
 - Discord slash command tree can attach a Russian translator (`locale_str(..., ru=...)`) so localized names work when commands use it
 - Documentation consolidated in GitHub Wiki; GitHub Pages removed
 - Subscriber pages moved to wiki: Как-отправить-заявку, FAQ-подписчиков, Discord-сервер
@@ -49,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Plugin API:** load third-party modules via `SB_MODULES` (`bot/core/modules.py`, `module_loader.py`); hooks `setup`, `setup_telegram`, `setup_discord`, `teardown`
 - Plugin API hardening: repo-root path resolution, dedup specs, `setup_discord` once per process, LIFO `teardown` with Discord context, `/healthz` `checks.modules`, `SB_MODULES_STRICT`, `python -m bot.core.module_loader` validate CLI
 - Example module: `examples/sample_module/` (`/sample_ping` on TG and Discord when enabled)
-- Wiki: Модули, Добавить-модуль; README repositioned as modular TG↔DS community platform
+- Wiki: Модули, Добавить-модуль; README described bundled TG↔DS examples (suggest, bridge, moderation)
 - Discord pass rooms: `/prohodka` requests a temporary role via suggest moderation; `/setup_pass` creates or locks channels behind that role (repeatable, not theme-specific)
 
 ## [0.1.0] - 2026-08-22

@@ -13,17 +13,17 @@ gh auth login
 
 ```powershell
 cd suggest-bridge
-gh repo create suggest-bridge --public --source=. --remote=origin --push --description "Self-hosted Telegram-Discord community platform: suggest, bridge, moderation modules (SB_MODULES)"
+gh repo create suggest-bridge --public --source=. --remote=origin --push --description "Open-source Telegram-Discord core. Add modules locally via SB_MODULES; they stay on your machine, not in this repo."
 git push origin v0.1.0
 gh release create v0.1.0 dist/suggest-bot-*.zip --title "v0.1.0" --notes-file CHANGELOG.md
 ```
 
 ## GitHub topics (optional)
 
-`suggest-bot`, `telegram-bot`, `discord-bot`, `self-hosted`, `python`, `aiogram`, `community`, `community-platform`, `discord-telegram-bridge`
+`suggest-bot`, `telegram-bot`, `discord-bot`, `self-hosted`, `python`, `aiogram`, `discord-telegram-bridge`, `open-source`
 
 ```powershell
 gh api --method PUT repos/OWNER/suggest-bridge/topics `
   -H "Accept: application/vnd.github+json" `
-  -f names='["suggest-bot","telegram-bot","discord-bot","self-hosted","python","aiogram","community","community-platform","discord-telegram-bridge"]'
+  -f names='["suggest-bot","telegram-bot","discord-bot","self-hosted","python","aiogram","discord-telegram-bridge","open-source"]'
 ```

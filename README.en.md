@@ -10,7 +10,7 @@
 [![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)](https://discord.gg/F3fBdeTx94)
 [![Wiki](https://img.shields.io/badge/docs-wiki-24292f)](https://github.com/noki4angel37/suggest-bridge/wiki)
 
-**Self-hosted community platform for Telegram ↔ Discord:** suggest flow, cross-platform bridge, pass requests, and other modules on one core. One process, shared moderation queue, dual-publish and feed mirroring.
+**Open-source Telegram↔Discord core.** You add features on your machine via `SB_MODULES`; they are not merged into this repository. Bundled examples: suggest, bridge, moderation, and others.
 
 Русский: [README.md](README.md) · **Docs:** [Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)
 
@@ -18,16 +18,20 @@
 
 ## What it is
 
-**Suggest Bridge** is a modular platform for your Telegram channel and Discord server. Core `bot/core/` (SQLite, `EventBus`, services) and aiogram + discord.py adapters run in one process. Built-in modules can be extended with your own via `SB_MODULES` (see wiki [[Модули]]).
+**Suggest Bridge** is an open-source core for Telegram and Discord. Core `bot/core/` (SQLite, `EventBus`, services) and aiogram + discord.py adapters run in one process.
 
-| Module | What it does |
-|--------|--------------|
+You write features on your machine and load them via `SB_MODULES` (see wiki [[Модули]]); they stay local and are not merged into this repository. Third-party modules **supplement** the process: bundled modules cannot be turned off via env yet.
+
+Bundled **examples** (not the product’s main goal):
+
+| Bundled example | What it does |
+|-----------------|--------------|
 | **Suggest** | Member submissions → moderation → publish to `#предложка` / TG channel |
 | **TG↔DS bridge** | Dual-publish and feed mirroring between platforms |
 | **Moderation** | Shared queue, mod cards, approve/reject/schedule, antiflood, blocklist |
 | **Also** | Pass requests, casino mini-games, Multi-PC `/host`, operator audit |
 
-Typical suggest flow: a member DMs the bot or uses `/suggest` — moderators review the card, approve or reject, and the post goes to Telegram and/or Discord. Anonymity, scheduled publishing, and feed mirroring are built in.
+Suggest example: a member DMs the bot or uses `/suggest` — moderators review the card, approve or reject, and the post goes to Telegram and/or Discord. Anonymity, scheduled publishing, and feed mirroring are part of this example. One process, shared moderation queue, dual-publish and feed mirroring.
 
 | Role | What they do |
 |------|----------------|
@@ -53,14 +57,14 @@ More in the Wiki: **[How to submit](https://github.com/noki4angel37/suggest-brid
 ### Who it is for
 
 - Admins of **Russian-speaking** Telegram channels and Discord servers (UI is RU; docs are bilingual)
-- Communities that want **their own** TG↔DS platform without SaaS lock-in (suggest is one module)
+- Anyone who wants an **open-source** TG↔DS core and local features, without SaaS (bundled suggest is an example module)
 - One instance = **one** community (one channel + one server)
 
 ### Features
 
 | Feature | Description |
 |---------|-------------|
-| Modules | Built-in: suggest, bridge, moderation, pass, casino; custom via `SB_MODULES` |
+| Modules | Bundled examples: suggest, bridge, moderation, pass, casino. Your own stay local via `SB_MODULES` — not PRs to this repo |
 | Submissions | Telegram DMs and Discord (`/suggest`, suggest channel) |
 | Moderation | Queue, approve, reject, reply to author, scheduled publish |
 | Publishing | Telegram channel and/or Discord feed (dual-publish) |
@@ -118,8 +122,8 @@ See [SETUP.md](SETUP.md) for Discord Developer Portal and BotFather steps.
 | Document | Audience |
 |----------|----------|
 | **[Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** | All docs: members and operators |
-| [Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули) | Built-in modules and `SB_MODULES` |
-| [Add a module](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль) | Third-party module author guide |
+| [Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули) | Bundled examples and `SB_MODULES` |
+| [Add a module](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль) | Local modules (not this GitHub) |
 | [How to submit](https://github.com/noki4angel37/suggest-bridge/wiki/Как-отправить-заявку) | Members |
 | [SETUP.md](SETUP.md) | Install from scratch |
 | [SECURITY.md](SECURITY.md) | Report vulnerabilities |

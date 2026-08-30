@@ -1,8 +1,10 @@
 # Suggest Bridge (English)
 
-**Suggest Bridge** is a self-hosted **Telegram ↔ Discord community platform**: suggest submissions, cross-platform bridge, and a shared moderation queue are equal modules on one core. Also: pass requests, casino mini-games, Multi-PC host.
+**Suggest Bridge** is an open-source Telegram ↔ Discord **core**. You add features on your machine via `SB_MODULES`; they are not merged into this repository. Bundled examples: suggest, bridge, moderation, and others.
 
-Members do not need tokens, servers, or setup — just DM the bot or use a command on Discord (see the **suggest** module below).
+Add your own features: [[Модули]] · [[Добавить-модуль]].
+
+Members do not need tokens, servers, or setup — just DM the bot or use a command on Discord (see the **suggest** example below).
 
 | | |
 |---|---|
@@ -14,16 +16,25 @@ Members do not need tokens, servers, or setup — just DM the bot or use a comma
 
 > Russian documentation: [[Home]]. Admin quick start: [[Быстрый-старт]] or [README](https://github.com/noki4angel37/suggest-bridge/blob/main/README.en.md).
 
-## Platform modules
+## Core and local features
+
+The core is what this repository ships. Your features stay on your machine: a path or package in `SB_MODULES`, not a merge into this GitHub.
+
+| Page | Purpose |
+|------|---------|
+| [[Модули]] | How modules and `SB_MODULES` work |
+| [[Добавить-модуль]] | How to write a module and load it locally |
+
+## Bundled examples
 
 | Module | Purpose |
 |--------|---------|
 | [[Модерация]] / suggest | Submissions → queue → publish |
 | [[Зеркало-ленты]] | TG↔DS bridge, dual-publish |
 | [[Проходка]] | Temporary roles via moderation |
-| Custom | [[Модули]], [[Добавить-модуль]] — `SB_MODULES` |
+| Custom | local: [[Модули]], [[Добавить-модуль]] — `SB_MODULES` |
 
-## How the suggest module works
+## How the suggest module works (example)
 
 1. **You submit** text or media (up to 400 characters in the caption).
 2. **Moderators review** the submission in a queue — approve, reject, or ask for clarification.
