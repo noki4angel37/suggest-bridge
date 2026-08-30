@@ -50,6 +50,7 @@
 | `Модули.md` | Модули |
 | `Добавить-модуль.md` | Добавить-модуль |
 | `Add-module-en.md` | Add-module-en |
+| `Module-FAQ-en.md` | Module-FAQ-en |
 | `FAQ-модулей.md` | FAQ-модулей |
 | `_Sidebar.md` | сайдбар |
 | `_Footer.md` | футер |

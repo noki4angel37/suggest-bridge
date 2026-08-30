@@ -163,6 +163,7 @@ docker compose up -d
 | [Добавить модуль](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль) | Свои модули локально (RU) |
 | [FAQ модулей](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей) | Пути, healthz, troubleshooting |
 | [Add module (EN)](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en) | English author guide |
+| [Module FAQ](https://github.com/noki4angel37/suggest-bridge/wiki/Module-FAQ-en) | Troubleshooting local modules |
 | [Как отправить заявку](https://github.com/noki4angel37/suggest-bridge/wiki/Как-отправить-заявку) | Подписчики |
 | [SETUP.md](SETUP.md) | Установка с нуля (Docker, Windows, systemd) |
 | [SECURITY.md](SECURITY.md) | Сообщить об уязвимости |

@@ -35,3 +35,6 @@ README — обзор. Wiki — операторский справочник п
 
 **Как сообщить о баге?**  
 [GitHub Issues](https://github.com/noki4angel37/suggest-bridge/issues): ОС, режим (TG/DS/both), шаги, логи **без токенов**. Уязвимости — только Security Advisory — [[Безопасность]].
+
+**Свой модуль (`SB_MODULES`) не загружается?**  
+[[FAQ-модулей]] · [[Module-FAQ-en]] · `python -m bot.core.module_loader` · `/healthz` → `checks.modules` — [[Устранение-неисправностей]].

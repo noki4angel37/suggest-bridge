@@ -2,7 +2,7 @@
 
 Guide for **local** extensions to Suggest Bridge. You do not need to fork the core or open a PR with your feature — write a class on **your machine** and list it in `SB_MODULES`.
 
-Russian: [[Добавить-модуль]] · Overview: [[Модули]] · Troubleshooting: [[FAQ-модулей]]
+Russian: [[Добавить-модуль]] · Overview: [[Модули]] · Troubleshooting: [[Module-FAQ-en]] · [[FAQ-модулей]]
 
 ## Quick path (5 minutes)
 

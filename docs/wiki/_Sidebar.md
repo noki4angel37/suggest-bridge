@@ -15,6 +15,7 @@
 
 - [[Home-en]]
 - [[Add-module-en]]
+- [[Module-FAQ-en]]
 - [[How-to-submit-en]]
 - [[Member-FAQ-en]]
 

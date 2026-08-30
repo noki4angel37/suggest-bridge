@@ -2,6 +2,8 @@
 
 Suggest Bridge — открытое ядро для Telegram и Discord. Свои функции пишете локально и подключаете через `SB_MODULES`; в этот GitHub они не попадают. В комплекте — примеры модулей (предложка, мост, модерация и др.). Один процесс, **один** канал и/или **один** Discord-сервер.
 
+**Свой модуль:** шаблон `examples/local_module_template/`, scaffold `scripts/modules/scaffold-local-module.*`, wiki [[Добавить-модуль]] · [[Add-module-en]] · [[FAQ-модулей]] · [[Module-FAQ-en]]. Проверка: `python -m bot.core.module_loader` → перезапуск → `/healthz` (`checks.modules`).
+
 ## Быстрый старт (Docker, рекомендуется)
 
 ```bash

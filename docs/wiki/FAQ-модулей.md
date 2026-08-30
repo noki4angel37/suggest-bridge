@@ -1,6 +1,6 @@
 # FAQ: свои модули (`SB_MODULES`)
 
-Ответы для авторов **локальных** расширений. English: [[Add-module-en]].
+Ответы для авторов **локальных** расширений. English: [[Module-FAQ-en]] · [[Add-module-en]].
 
 ## С чего начать?
 
@@ -69,4 +69,5 @@ SB_MODULES=/opt/modules/a.py:ModuleA,/opt/modules/b.py:ModuleB
 - [[Модули]] — API и правила allowlist
 - [[Добавить-модуль]] — пошаговый гайд
 - [[Add-module-en]] — English author guide
+- [[Module-FAQ-en]] — English troubleshooting
 - `examples/sample_module/` — полный пример с EventBus

@@ -50,7 +50,7 @@ For local extensions — before subscriber and admin sections:
 3. Point `SB_MODULES` at your file (no PR to this repo).
 4. Validate: `python -m bot.core.module_loader` → restart the bot → `curl http://127.0.0.1:8080/healthz` (`checks.modules`).
 
-Details: wiki **[Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Add module](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en)** · **[Module FAQ](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей)** (RU) · samples `examples/sample_module/`, `examples/local_module_template/`.
+Details: wiki **[Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули)** · **[Add module](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en)** · **[Module FAQ](https://github.com/noki4angel37/suggest-bridge/wiki/Module-FAQ-en)** · [FAQ модулей (RU)](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей) · samples `examples/sample_module/`, `examples/local_module_template/`.
 
 ---
 
@@ -138,7 +138,9 @@ See [SETUP.md](SETUP.md) for Discord Developer Portal and BotFather steps.
 |----------|----------|
 | **[Wiki](https://github.com/noki4angel37/suggest-bridge/wiki)** | All docs: members and operators |
 | [Modules](https://github.com/noki4angel37/suggest-bridge/wiki/Модули) | Bundled examples and `SB_MODULES` |
-| [Add a module](https://github.com/noki4angel37/suggest-bridge/wiki/Добавить-модуль) | Local modules (not this GitHub) |
+| [Add a module](https://github.com/noki4angel37/suggest-bridge/wiki/Add-module-en) | Local modules (English guide) |
+| [Module FAQ](https://github.com/noki4angel37/suggest-bridge/wiki/Module-FAQ-en) | Troubleshooting local modules |
+| [FAQ модулей](https://github.com/noki4angel37/suggest-bridge/wiki/FAQ-модулей) | Troubleshooting (Russian) |
 | [How to submit](https://github.com/noki4angel37/suggest-bridge/wiki/Как-отправить-заявку) | Members |
 | [SETUP.md](SETUP.md) | Install from scratch |
 | [SECURITY.md](SECURITY.md) | Report vulnerabilities |
